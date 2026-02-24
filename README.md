@@ -17,7 +17,7 @@ To execute the c++ files in this repository the user will have to:
 	./cpu_pct --interval 1
 	./cpu_pct --interval 0.5 --raw
 
-	g++ -O2 -std=c++17 mem_pct.cpp -o mem_cpt
+	g++ -O2 -std=c++17 mem_pct.cpp -o mem_pct
 	chmod +x mem_cpt
 	./mem_cpt
 	./mem_cpt --raw
