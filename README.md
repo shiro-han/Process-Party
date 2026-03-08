@@ -1,31 +1,16 @@
-# System-Resource-Monitor
-System Resource Monitor Project (made for Rowan Uni's Software Engineering Class)
+# Process Party
 
-To execute the c++ files in this repository the user will have to:
-	enter 'chmod +x fileName.cpp' in the terminal, to make the file executable.
-	make sure g++, the GNU C++ compiler driver is installed, by entering:
-		g++ --version
-		if none exists, install by:
-			sudo apt install build-essentials
-	After install, compile by entering:
-		g++ -O2 -std=c++17 filename.cpp filename
-		
-	Examples of current files:
+Process Party is a lightweight Linux system monitor written in C++ and Qt**.
+It displays real-time system metrics and a live process table.
 
-	g++ -O2 -std=c++17 cpu_pct.cpp -o cpu_pct
-	chmod +x cpu_pct
-	./cpu_pct --interval 1
-	./cpu_pct --interval 0.5 --raw
+The application reads system information directly from the Linux /proc file system 
+    and presents it in a graphical dashboard.
 
-	g++ -O2 -std=c++17 mem_pct.cpp -o mem_pct
-	chmod +x mem_cpt
-	./mem_cpt
-	./mem_cpt --raw
+## Requirements
+- Linux (tested on Ubuntu)
+- Qt 6
+- CMake
+- g++
 
-	g++ -O2 -std=c++17 disk_pct.cpp -o disk_pct
-	./disk_pct
-	./disk_pct --interval 0.5 --raw
-
-	g++ -O2 -std=c++17 net_rate.cpp -o net_rate
-	./net_rate
-	./net_rate --interval 0.5 --raw
+### Install dependencies:
+`sudo apt install qt6-base-dev cmake build-essential`

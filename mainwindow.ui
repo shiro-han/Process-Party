@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>980</width>
+    <height>620</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Process Party</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainVerticalLayout">
+    <property name="spacing">
+     <number>14</number>
+    </property>
+    <property name="leftMargin">
+     <number>16</number>
+    </property>
+    <property name="topMargin">
+     <number>16</number>
+    </property>
+    <property name="rightMargin">
+     <number>16</number>
+    </property>
+    <property name="bottomMargin">
+     <number>16</number>
+    </property>
+
+    <item>
+     <widget class="QLabel" name="titleLabel">
+      <property name="text">
+       <string>Process Party</string>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">font-size: 20px; font-weight: bold;</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+
+    <item>
+     <layout class="QHBoxLayout" name="summaryRowLayout">
+      <property name="spacing">
+       <number>20</number>
+      </property>
+
+      <item>
+       <widget class="QFrame" name="cpuSummaryFrame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="cpuSummaryLayout">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="cpuSummaryValue">
+           <property name="text">
+            <string>0%</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 28px; font-weight: bold;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="cpuSummaryTitle">
+           <property name="text">
+            <string>CPU</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 12px; color: gray;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QFrame" name="memorySummaryFrame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="memorySummaryLayout">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="memorySummaryValue">
+           <property name="text">
+            <string>0%</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 28px; font-weight: bold;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="memorySummaryTitle">
+           <property name="text">
+            <string>Memory</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 12px; color: gray;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QFrame" name="diskSummaryFrame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="diskSummaryLayout">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="diskSummaryValue">
+           <property name="text">
+            <string>0%</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 28px; font-weight: bold;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="diskSummaryTitle">
+           <property name="text">
+            <string>Disk</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 12px; color: gray;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QFrame" name="networkSummaryFrame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="networkSummaryLayout">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="networkSummaryValue">
+           <property name="text">
+            <string>0 B/s</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 28px; font-weight: bold;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="networkSummaryTitle">
+           <property name="text">
+            <string>Network</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">font-size: 12px; color: gray;</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <item>
+     <widget class="QLabel" name="processSectionLabel">
+      <property name="text">
+       <string>Processes</string>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">font-size: 16px; font-weight: bold;</string>
+      </property>
+     </widget>
+    </item>
+
+    <item>
+     <widget class="QTableWidget" name="processTable"/>
+    </item>
+
+    <item>
+     <widget class="QLabel" name="statusLabel">
+      <property name="text">
+       <string>Status</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">font-size: 13px; color: #555555;</string>
+      </property>
+     </widget>
+    </item>
+
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>980</width>
+     <height>24</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
