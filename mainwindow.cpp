@@ -1,95 +1,96 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "systemstats.h"
+
+#include <QHeaderView>
+#include <QTableWidgetItem>
 #include <QString>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , cpuThread(new QThread(this))
-    , memThread(new QThread(this))
-    , diskThread(new QThread(this))
-    , netThread(new QThread(this))
-    , cpuWorker(new CpuWorker)
-    , memWorker(new MemWorker)
-    , diskWorker(new DiskWorker)
-    , netWorker(new NetWorker)
+    : QMainWindow(parent),
+      ui(new Ui::MainWindow),
+      timer(new QTimer(this))
 {
     ui->setupUi(this);
 
-    // Move each worker onto its own thread
-    cpuWorker->moveToThread(cpuThread);
-    memWorker->moveToThread(memThread);
-    diskWorker->moveToThread(diskThread);
-    netWorker->moveToThread(netThread);
+    setupProcessTable();
 
-    // Wire request signals → worker run slots
-    connect(this, &MainWindow::requestCpu,  cpuWorker,  &CpuWorker::run);
-    connect(this, &MainWindow::requestMem,  memWorker,  &MemWorker::run);
-    connect(this, &MainWindow::requestDisk, diskWorker, &DiskWorker::run);
-    connect(this, &MainWindow::requestNet,  netWorker,  &NetWorker::run);
+    connect(timer, &QTimer::timeout,
+            this, &MainWindow::updateStats);
 
-    // Wire worker result signals → main window slots (queued across threads)
-    connect(cpuWorker,  &CpuWorker::result,  this, &MainWindow::onCpuResult);
-    connect(memWorker,  &MemWorker::result,  this, &MainWindow::onMemResult);
-    connect(diskWorker, &DiskWorker::result, this, &MainWindow::onDiskResult);
-    connect(netWorker,  &NetWorker::result,  this, &MainWindow::onNetResult);
+    timer->start(1000);
 
-    // Clean up workers when threads finish
-    connect(cpuThread,  &QThread::finished, cpuWorker,  &QObject::deleteLater);
-    connect(memThread,  &QThread::finished, memWorker,  &QObject::deleteLater);
-    connect(diskThread, &QThread::finished, diskWorker, &QObject::deleteLater);
-    connect(netThread,  &QThread::finished, netWorker,  &QObject::deleteLater);
-
-    // Start all threads
-    cpuThread->start();
-    memThread->start();
-    diskThread->start();
-    netThread->start();
-
-    // Kick off the first sample on all 4 threads simultaneously
-    emit requestCpu();
-    emit requestMem();
-    emit requestDisk();
-    emit requestNet();
+    updateStats();
 }
 
-MainWindow::~MainWindow() {
-    cpuThread->quit();  cpuThread->wait();
-    memThread->quit();  memThread->wait();
-    diskThread->quit(); diskThread->wait();
-    netThread->quit();  netThread->wait();
+MainWindow::~MainWindow()
+{
     delete ui;
 }
 
-// When a result comes back, update the label and immediately request the next sample
-void MainWindow::onCpuResult(CpuResult r) {
-    ui->cpuLabel->setText(r.ok ? QString::number(r.pct, 'f', 1) + "%" : "Error");
-    emit requestCpu();  // loop: request next sample right away
+void MainWindow::setupProcessTable()
+{
+    ui->processTable->setColumnCount(9);
+
+    QStringList headers;
+    headers << "PID"
+            << "Name"
+            << "State"
+            << "CPU %"
+            << "RSS MB"
+            << "Threads"
+            << "Read/s"
+            << "Write/s"
+            << "CPU Time";
+
+    ui->processTable->setHorizontalHeaderLabels(headers);
+    ui->processTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->processTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->processTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->processTable->setAlternatingRowColors(true);
+    ui->processTable->verticalHeader()->setVisible(false);
+    ui->processTable->horizontalHeader()->setStretchLastSection(true);
+    ui->processTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 }
 
-void MainWindow::onMemResult(MemResult r) {
-    ui->memLabel->setText(r.ok ? QString::number(r.pct, 'f', 1) + "%" : "Error");
-    emit requestMem();
+void MainWindow::populateProcessTable(const std::vector<ProcessRow> &rows)
+{
+    ui->processTable->setRowCount(static_cast<int>(rows.size()));
+
+    for (int row = 0; row < static_cast<int>(rows.size()); ++row)
+    {
+        const ProcessRow &p = rows[row];
+
+        ui->processTable->setItem(row, 0, new QTableWidgetItem(QString::number(p.pid)));
+        ui->processTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(p.name)));
+        ui->processTable->setItem(row, 2, new QTableWidgetItem(QString(p.state)));
+        ui->processTable->setItem(row, 3, new QTableWidgetItem(QString::number(p.cpuPercent, 'f', 1)));
+        ui->processTable->setItem(row, 4, new QTableWidgetItem(QString::number(p.rssMB, 'f', 1)));
+        ui->processTable->setItem(row, 5, new QTableWidgetItem(QString::number(p.threads)));
+        ui->processTable->setItem(row, 6, new QTableWidgetItem(QString::number(p.readBytesPerSec)));
+        ui->processTable->setItem(row, 7, new QTableWidgetItem(QString::number(p.writeBytesPerSec)));
+        ui->processTable->setItem(row, 8, new QTableWidgetItem(QString::number(p.cpuTimeSec, 'f', 1)));
+    }
 }
 
-void MainWindow::onDiskResult(DiskResult r) {
-    if (r.ok)
-        ui->diskLabel->setText(QString::number(r.pct, 'f', 1) + "% (" + QString::fromStdString(r.dev) + ")");
-    else
-        ui->diskLabel->setText("Error");
-    emit requestDisk();
+void MainWindow::updateStats()
+{
+    SystemData data = SystemStats::readSystemData();
+
+    ui->cpuSummaryValue->setText(QString("%1%").arg(data.cpuPercent));
+    ui->memorySummaryValue->setText(QString("%1%").arg(data.memoryPercent));
+    ui->diskSummaryValue->setText(QString("%1%").arg(data.diskPercent));
+    ui->networkSummaryValue->setText(QString::fromStdString(data.networkDownloadText));
+
+    std::vector<ProcessRow> rows = processTable.readProcesses();
+    populateProcessTable(rows);
+
+    ui->statusLabel->setText(
+        QString("CPU %1%% | Memory %2%% | Disk %3%% | Network %4 | Processes %5")
+            .arg(data.cpuPercent)
+            .arg(data.memoryPercent)
+            .arg(data.diskPercent)
+            .arg(QString::fromStdString(data.networkDownloadText))
+            .arg(rows.size())
+    );
 }
-
-void MainWindow::onNetResult(NetResult r) {
-    if (r.ok)
-        ui->netLabel->setText(
-            QString::fromStdString(r.iface) + "\n" +
-            "RX: " + QString::number(r.rx_Bps, 'f', 0) + " B/s\n" +
-            "TX: " + QString::number(r.tx_Bps, 'f', 0) + " B/s"
-        );
-    else
-        ui->netLabel->setText("Error");
-    emit requestNet();
-}
-
-

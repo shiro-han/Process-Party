@@ -1,1 +1,14 @@
+# Ignore the build folders
+build/
+CMakeFiles/
+CmakeCache.txt
+
+# Ignore QT/IDE
 *.user
+*.autosave
+
+# Object files
+*.o
+
+# macOS
+.DS_Store
