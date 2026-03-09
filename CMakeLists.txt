@@ -53,7 +53,7 @@ else()
     endif()
 endif()
 
-target_link_libraries(Process_Party PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(Process_Party PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core)
 
 set_target_properties(Process_Party PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
