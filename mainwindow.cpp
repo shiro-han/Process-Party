@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "systemstats.h"
-
 #include <QHeaderView>
 #include <QTableWidgetItem>
 #include <QString>
@@ -9,29 +8,49 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::MainWindow),
-      timer(new QTimer(this))
+      timer(new QTimer(this)),
+      workerThread(new QThread(this)),
+      statsWorker(new StatsWorker)
 {
     ui->setupUi(this);
-
     setupProcessTable();
 
-    connect(timer, &QTimer::timeout,
-            this, &MainWindow::updateStats);
+    // Move worker onto background thread
+    statsWorker->moveToThread(workerThread);
 
+    // Timer fires on main thread → triggers worker on background thread
+    connect(timer, &QTimer::timeout, this, &MainWindow::requestStats);
+
+    // Wire worker result back to main thread
+    connect(this, &MainWindow::requestStats, statsWorker, &StatsWorker::run);
+    connect(statsWorker, &StatsWorker::result, this, &MainWindow::onStatsResult);
+    connect(workerThread, &QThread::finished, statsWorker, &QObject::deleteLater);
+
+    workerThread->start();
+
+    // Default interval: 1000ms (1 second)
     timer->start(1000);
 
-    updateStats();
+    // Kick off first sample immediately without waiting for first tick
+    emit requestStats();
 }
 
 MainWindow::~MainWindow()
 {
+    timer->stop();
+    workerThread->quit();
+    workerThread->wait();
     delete ui;
+}
+
+void MainWindow::setRefreshInterval(int milliseconds)
+{
+    timer->setInterval(milliseconds);
 }
 
 void MainWindow::setupProcessTable()
 {
     ui->processTable->setColumnCount(9);
-
     QStringList headers;
     headers << "PID"
             << "Name"
@@ -42,7 +61,6 @@ void MainWindow::setupProcessTable()
             << "Read/s"
             << "Write/s"
             << "CPU Time";
-
     ui->processTable->setHorizontalHeaderLabels(headers);
     ui->processTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->processTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -55,38 +73,52 @@ void MainWindow::setupProcessTable()
 
 void MainWindow::populateProcessTable(const std::vector<ProcessRow> &rows)
 {
-    ui->processTable->setRowCount(static_cast<int>(rows.size()));
+    int newRowCount = static_cast<int>(rows.size());
 
-    for (int row = 0; row < static_cast<int>(rows.size()); ++row)
+    // Only reset row count if it actually changed
+    if (ui->processTable->rowCount() != newRowCount)
+        ui->processTable->setRowCount(newRowCount);
+
+    for (int row = 0; row < newRowCount; ++row)
     {
         const ProcessRow &p = rows[row];
 
-        ui->processTable->setItem(row, 0, new QTableWidgetItem(QString::number(p.pid)));
-        ui->processTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(p.name)));
-        ui->processTable->setItem(row, 2, new QTableWidgetItem(QString(p.state)));
-        ui->processTable->setItem(row, 3, new QTableWidgetItem(QString::number(p.cpuPercent, 'f', 1)));
-        ui->processTable->setItem(row, 4, new QTableWidgetItem(QString::number(p.rssMB, 'f', 1)));
-        ui->processTable->setItem(row, 5, new QTableWidgetItem(QString::number(p.threads)));
-        ui->processTable->setItem(row, 6, new QTableWidgetItem(QString::number(p.readBytesPerSec)));
-        ui->processTable->setItem(row, 7, new QTableWidgetItem(QString::number(p.writeBytesPerSec)));
-        ui->processTable->setItem(row, 8, new QTableWidgetItem(QString::number(p.cpuTimeSec, 'f', 1)));
+        auto setText = [&](int col, const QString &text) {
+            QTableWidgetItem *item = ui->processTable->item(row, col);
+            if (!item) {
+                item = new QTableWidgetItem(text);
+                ui->processTable->setItem(row, col, item);
+            } else if (item->text() != text) {
+                item->setText(text);
+            }
+        };
+
+        setText(0, QString::number(p.pid));
+        setText(1, QString::fromStdString(p.name));
+        setText(2, QString(p.state));
+        setText(3, QString::number(p.cpuPercent, 'f', 1));
+        setText(4, QString::number(p.rssMB, 'f', 1));
+        setText(5, QString::number(p.threads));
+        setText(6, QString::number(p.readBytesPerSec));
+        setText(7, QString::number(p.writeBytesPerSec));
+        setText(8, QString::number(p.cpuTimeSec, 'f', 1));
     }
 }
 
-void MainWindow::updateStats()
+void MainWindow::onStatsResult(SystemData data, std::vector<ProcessRow> rows)
 {
-    SystemData data = SystemStats::readSystemData();
-
+    // Update the 4 summary boxes
     ui->cpuSummaryValue->setText(QString("%1%").arg(data.cpuPercent));
     ui->memorySummaryValue->setText(QString("%1%").arg(data.memoryPercent));
     ui->diskSummaryValue->setText(QString("%1%").arg(data.diskPercent));
     ui->networkSummaryValue->setText(QString::fromStdString(data.networkDownloadText));
 
-    std::vector<ProcessRow> rows = processTable.readProcesses();
+    // Update process table
     populateProcessTable(rows);
 
+    // Update status bar
     ui->statusLabel->setText(
-        QString("CPU %1%% | Memory %2%% | Disk %3%% | Network %4 | Processes %5")
+        QString("CPU %1% | Memory %2% | Disk %3% | Network %4 | Processes %5")
             .arg(data.cpuPercent)
             .arg(data.memoryPercent)
             .arg(data.diskPercent)
