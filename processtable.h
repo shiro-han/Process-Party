@@ -19,12 +19,22 @@ struct ProcessRow
     int pid = 0;
     std::string name;
     char state = '?';
+
     double cpuPercent = 0.0;
-    double rssMB = 0.0;
+    double cpuTimeSec = 0.0;
     long long threads = 0;
+
+    double rssMB = 0.0;
+    double vszMB = 0.0;
+    double sharedMB = 0.0;
+
     long long readBytesPerSec = 0;
     long long writeBytesPerSec = 0;
-    double cpuTimeSec = 0.0;
+    unsigned long long totalReadBytes = 0;
+    unsigned long long totalWriteBytes = 0;
+
+    long long priority = 0;
+    long long niceValue = 0;
 };
 
 struct ProcInfoNow
@@ -33,9 +43,16 @@ struct ProcInfoNow
     char state = '?';
     long long cpuTicks = 0;
     long long threads = 0;
+
     long long rssKB = 0;
+    long long vszKB = 0;
+    long long sharedKB = 0;
+
     unsigned long long readBytes = 0;
     unsigned long long writeBytes = 0;
+
+    long long priority = 0;
+    long long niceValue = 0;
 };
 
 class ProcessTable
@@ -61,9 +78,14 @@ private:
                              char &outState,
                              long long &outUtime,
                              long long &outStime,
-                             long long &outThreads);
+                             long long &outThreads,
+                             long long &outPriority,
+                             long long &outNice);
 
-    static long long readVmRssKB(int pid);
+    static void readMemoryFields(int pid,
+                                 long long &outVmRssKB,
+                                 long long &outVmSizeKB,
+                                 long long &outRssFileKB);
 
     static bool readProcIo(int pid,
                            unsigned long long &outRead,

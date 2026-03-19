@@ -6,250 +6,1075 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>980</width>
-    <height>620</height>
+    <width>1280</width>
+    <height>860</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Process Party</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="mainVerticalLayout">
+   <layout class="QHBoxLayout" name="rootLayout">
     <property name="spacing">
-     <number>14</number>
+     <number>12</number>
     </property>
     <property name="leftMargin">
-     <number>16</number>
+     <number>12</number>
     </property>
     <property name="topMargin">
-     <number>16</number>
+     <number>12</number>
     </property>
     <property name="rightMargin">
-     <number>16</number>
+     <number>12</number>
     </property>
     <property name="bottomMargin">
-     <number>16</number>
+     <number>12</number>
     </property>
-
     <item>
-     <widget class="QLabel" name="titleLabel">
-      <property name="text">
-       <string>Process Party</string>
+     <widget class="QFrame" name="sidebarFrame">
+      <property name="minimumSize">
+       <size>
+        <width>180</width>
+        <height>0</height>
+       </size>
       </property>
-      <property name="styleSheet">
-       <string notr="true">font-size: 20px; font-weight: bold;</string>
+      <property name="maximumSize">
+       <size>
+        <width>220</width>
+        <height>16777215</height>
+       </size>
       </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
       </property>
+      <layout class="QVBoxLayout" name="sidebarLayout">
+       <property name="spacing">
+        <number>10</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="sidebarToggleButton">
+         <property name="text">
+          <string>Collapse</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="sidebarTitleLabel">
+         <property name="text">
+          <string>Process Party</string>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">font-size: 20px; font-weight: bold;</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="dashboardButton">
+         <property name="text">
+          <string>Dashboard</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cpuButton">
+         <property name="text">
+          <string>CPU</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="memoryButton">
+         <property name="text">
+          <string>Memory</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="diskButton">
+         <property name="text">
+          <string>Disk</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="networkButton">
+         <property name="text">
+          <string>Network</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="sidebarSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
      </widget>
     </item>
-
     <item>
-     <layout class="QHBoxLayout" name="summaryRowLayout">
+     <layout class="QVBoxLayout" name="rightSideLayout">
       <property name="spacing">
-       <number>20</number>
+       <number>10</number>
       </property>
-
       <item>
-       <widget class="QFrame" name="cpuSummaryFrame">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
+       <widget class="QLabel" name="pageTitleLabel">
+        <property name="text">
+         <string>Dashboard</string>
         </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
+        <property name="styleSheet">
+         <string notr="true">font-size: 22px; font-weight: bold;</string>
         </property>
-        <layout class="QVBoxLayout" name="cpuSummaryLayout">
-         <property name="spacing">
-          <number>4</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="cpuSummaryValue">
-           <property name="text">
-            <string>0%</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 28px; font-weight: bold;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="cpuSummaryTitle">
-           <property name="text">
-            <string>CPU</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 12px; color: gray;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </widget>
       </item>
-
       <item>
-       <widget class="QFrame" name="memorySummaryFrame">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
+       <widget class="QSplitter" name="mainVerticalSplitter">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
         </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QVBoxLayout" name="memorySummaryLayout">
-         <property name="spacing">
-          <number>4</number>
+        <widget class="QScrollArea" name="mainScrollArea">
+         <property name="widgetResizable">
+          <bool>true</bool>
          </property>
-         <item>
-          <widget class="QLabel" name="memorySummaryValue">
-           <property name="text">
-            <string>0%</string>
+         <widget class="QWidget" name="mainScrollAreaWidgetContents">
+          <layout class="QVBoxLayout" name="scrollContentLayout">
+           <property name="spacing">
+            <number>12</number>
            </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 28px; font-weight: bold;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="memorySummaryTitle">
-           <property name="text">
-            <string>Memory</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 12px; color: gray;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
+           <item>
+            <widget class="QStackedWidget" name="stackedWidget">
+             <widget class="QWidget" name="dashboardPage">
+              <layout class="QVBoxLayout" name="dashboardPageLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <layout class="QGridLayout" name="dashboardGraphsGrid">
+                 <property name="horizontalSpacing">
+                  <number>12</number>
+                 </property>
+                 <property name="verticalSpacing">
+                  <number>12</number>
+                 </property>
+                 <item row="0" column="0">
+                  <widget class="QWidget" name="dashboardCpuGraphContainer" native="true" />
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QWidget" name="dashboardMemoryGraphContainer" native="true" />
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QWidget" name="dashboardDiskGraphContainer" native="true" />
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QWidget" name="dashboardNetworkGraphContainer" native="true" />
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="cpuPage">
+              <layout class="QVBoxLayout" name="cpuPageLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="cpuUsageToggleButton">
+                 <property name="text">
+                  <string>CPU Usage ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="cpuUsageSection">
+                 <layout class="QVBoxLayout" name="cpuUsageSectionLayout">
+                  <item>
+                   <widget class="QWidget" name="cpuGraphContainer" native="true" />
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="cpuStatsFrame">
+                    <property name="frameShape">
+                     <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <layout class="QGridLayout" name="cpuStatsGridLayout">
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="cpuCurrentTitleLabel">
+                       <property name="text">
+                        <string>Total Current</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="cpuCurrentValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="2">
+                      <widget class="QLabel" name="cpuAverageTitleLabel">
+                       <property name="text">
+                        <string>Total Average</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QLabel" name="cpuAverageValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="4">
+                      <widget class="QLabel" name="cpuPeakTitleLabel">
+                       <property name="text">
+                        <string>Total Peak</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="5">
+                      <widget class="QLabel" name="cpuPeakValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="0">
+                      <widget class="QLabel" name="cpuUserCurrentTitleLabel">
+                       <property name="text">
+                        <string>User Current</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="1">
+                      <widget class="QLabel" name="cpuUserCurrentValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="2">
+                      <widget class="QLabel" name="cpuUserAverageTitleLabel">
+                       <property name="text">
+                        <string>User Average</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="3">
+                      <widget class="QLabel" name="cpuUserAverageValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="4">
+                      <widget class="QLabel" name="cpuUserPeakTitleLabel">
+                       <property name="text">
+                        <string>User Peak</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="5">
+                      <widget class="QLabel" name="cpuUserPeakValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="0">
+                      <widget class="QLabel" name="cpuSystemCurrentTitleLabel">
+                       <property name="text">
+                        <string>System Current</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="1">
+                      <widget class="QLabel" name="cpuSystemCurrentValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="2">
+                      <widget class="QLabel" name="cpuSystemAverageTitleLabel">
+                       <property name="text">
+                        <string>System Average</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="3">
+                      <widget class="QLabel" name="cpuSystemAverageValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="4">
+                      <widget class="QLabel" name="cpuSystemPeakTitleLabel">
+                       <property name="text">
+                        <string>System Peak</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="5">
+                      <widget class="QLabel" name="cpuSystemPeakValueLabel">
+                       <property name="text">
+                        <string>0.0%</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="cpuPerCoreToggleButton">
+                 <property name="text">
+                  <string>Per-Core CPU ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="cpuPerCoreSection">
+                 <layout class="QVBoxLayout" name="cpuPerCoreSectionLayout">
+                  <item>
+                   <widget class="QScrollArea" name="cpuPerCoreScrollArea">
+                    <property name="widgetResizable">
+                     <bool>true</bool>
+                    </property>
+                    <widget class="QWidget" name="cpuPerCoreScrollWidget">
+                     <layout class="QGridLayout" name="cpuPerCoreGridLayout">
+                      <property name="horizontalSpacing">
+                       <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                       <number>10</number>
+                      </property>
+                     </layout>
+                    </widget>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="memoryPage">
+              <layout class="QVBoxLayout" name="memoryPageLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="memoryUsageToggleButton">
+                 <property name="text">
+                  <string>Memory Usage ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="memoryUsageSection">
+                 <layout class="QVBoxLayout" name="memoryUsageSectionLayout">
+                  <item>
+                   <widget class="QWidget" name="memoryGraphContainer" native="true" />
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="memoryStatsFrame">
+                    <property name="frameShape">
+                     <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <layout class="QGridLayout" name="memoryStatsGridLayout">
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="memoryTotalTitleLabel">
+                       <property name="text">
+                        <string>Total</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="memoryTotalValueLabel">
+                       <property name="text">
+                        <string>0.0 MB</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="2">
+                      <widget class="QLabel" name="memoryUsedTitleLabel">
+                       <property name="text">
+                        <string>Used</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QLabel" name="memoryUsedValueLabel">
+                       <property name="text">
+                        <string>0.0 MB</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="4">
+                      <widget class="QLabel" name="memoryAvailableTitleLabel">
+                       <property name="text">
+                        <string>Available</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="5">
+                      <widget class="QLabel" name="memoryAvailableValueLabel">
+                       <property name="text">
+                        <string>0.0 MB</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="memorySecondaryGrid">
+                 <item row="0" column="0">
+                  <layout class="QVBoxLayout" name="usedAvailableSectionLayout">
+                   <item>
+                    <widget class="QPushButton" name="memoryUsedAvailableToggleButton">
+                     <property name="text">
+                      <string>Used vs Available ▼</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true">text-align: left; font-weight: bold;</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QWidget" name="memoryUsedAvailableSection">
+                     <layout class="QVBoxLayout" name="memoryUsedAvailableSectionLayout">
+                      <item>
+                       <widget class="QWidget" name="memoryUsedGraphContainer" native="true" />
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="memoryUsedAvailableStatsFrame">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <layout class="QGridLayout" name="memoryUsedAvailableStatsLayout">
+                         <item row="0" column="0">
+                          <widget class="QLabel" name="memoryUsedStatTitleLabel">
+                           <property name="text">
+                            <string>Used</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="1">
+                          <widget class="QLabel" name="memoryUsedStatValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="2">
+                          <widget class="QLabel" name="memoryAvailableStatTitleLabel">
+                           <property name="text">
+                            <string>Available</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="3">
+                          <widget class="QLabel" name="memoryAvailableStatValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item row="0" column="1">
+                  <layout class="QVBoxLayout" name="cacheBuffersSectionLayout">
+                   <item>
+                    <widget class="QPushButton" name="memoryCacheBuffersToggleButton">
+                     <property name="text">
+                      <string>Cache / Buffers ▼</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true">text-align: left; font-weight: bold;</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QWidget" name="memoryCacheBuffersSection">
+                     <layout class="QVBoxLayout" name="memoryCacheBuffersSectionLayout">
+                      <item>
+                       <widget class="QWidget" name="memoryCacheGraphContainer" native="true" />
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="memoryCacheBuffersStatsFrame">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <layout class="QGridLayout" name="memoryCacheBuffersStatsLayout">
+                         <item row="0" column="0">
+                          <widget class="QLabel" name="memoryCacheStatTitleLabel">
+                           <property name="text">
+                            <string>Cache</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="1">
+                          <widget class="QLabel" name="memoryCacheStatValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="2">
+                          <widget class="QLabel" name="memoryBuffersStatTitleLabel">
+                           <property name="text">
+                            <string>Buffers</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="3">
+                          <widget class="QLabel" name="memoryBuffersStatValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item row="1" column="0" colspan="2">
+                  <layout class="QVBoxLayout" name="swapSectionLayout">
+                   <item>
+                    <widget class="QPushButton" name="memorySwapToggleButton">
+                     <property name="text">
+                      <string>Swap ▼</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true">text-align: left; font-weight: bold;</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QWidget" name="memorySwapSection">
+                     <layout class="QVBoxLayout" name="memorySwapSectionLayout">
+                      <item>
+                       <widget class="QWidget" name="memorySwapGraphContainer" native="true" />
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="memorySwapStatsFrame">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <layout class="QGridLayout" name="memorySwapStatsGridLayout">
+                         <item row="0" column="0">
+                          <widget class="QLabel" name="memorySwapTotalTitleLabel">
+                           <property name="text">
+                            <string>Swap Total</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="1">
+                          <widget class="QLabel" name="memorySwapTotalValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="2">
+                          <widget class="QLabel" name="memorySwapUsedTitleLabel">
+                           <property name="text">
+                            <string>Swap Used</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="3">
+                          <widget class="QLabel" name="memorySwapUsedValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="4">
+                          <widget class="QLabel" name="memorySwapFreeTitleLabel">
+                           <property name="text">
+                            <string>Swap Free</string>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">font-weight: bold;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="5">
+                          <widget class="QLabel" name="memorySwapFreeValueLabel">
+                           <property name="text">
+                            <string>0.0 MB</string>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="diskPage">
+             <layout class="QVBoxLayout" name="diskPageLayout">
+              <property name="spacing">
+               <number>6</number>
+              </property>
+              <property name="topMargin">
+               <number>4</number>
+              </property>
+               <item>
+                <widget class="QPushButton" name="diskActivityToggleButton">
+                 <property name="text">
+                  <string>Disk Activity ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="diskActivitySection">
+                 <layout class="QVBoxLayout" name="diskActivitySectionLayout">
+                  <item>
+                   <widget class="QWidget" name="diskGraphContainer" native="true" />
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="diskActivityStatsFrame">
+                    <property name="frameShape">
+                     <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <layout class="QGridLayout" name="diskActivityStatsLayout">
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="diskReadStatTitleLabel">
+                       <property name="text">
+                        <string>Read/s</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="diskReadStatValueLabel">
+                       <property name="text">
+                        <string>0 B/s</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="2">
+                      <widget class="QLabel" name="diskWriteStatTitleLabel">
+                       <property name="text">
+                        <string>Write/s</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QLabel" name="diskWriteStatValueLabel">
+                       <property name="text">
+                        <string>0 B/s</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="diskUsageToggleButton">
+                 <property name="text">
+                  <string>Disk Usage ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="diskUsageSection">
+                 <layout class="QVBoxLayout" name="diskUsageSectionLayout">
+                  <property name="spacing">
+                   <number>4</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QWidget" name="diskBarGraphContainer" native="true" />
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="diskUsageStatsFrame">
+                    <property name="frameShape">
+                     <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <layout class="QGridLayout" name="diskUsageStatsLayout">
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="diskUsedTitleLabel">
+                       <property name="text">
+                        <string>Used</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="diskUsedValueLabel">
+                       <property name="text">
+                        <string>0.0 GB</string>
+                       </property>
+                      </widget>
+                     </item>
 
-      <item>
-       <widget class="QFrame" name="diskSummaryFrame">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QVBoxLayout" name="diskSummaryLayout">
-         <property name="spacing">
-          <number>4</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="diskSummaryValue">
-           <property name="text">
-            <string>0%</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 28px; font-weight: bold;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="diskSummaryTitle">
-           <property name="text">
-            <string>Disk</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 12px; color: gray;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
+                     <item row="0" column="2">
+                      <widget class="QLabel" name="diskFreeTitleLabel">
+                       <property name="text">
+                        <string>Free</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QLabel" name="diskFreeValueLabel">
+                       <property name="text">
+                        <string>0.0 GB</string>
+                       </property>
+                      </widget>
+                     </item>
 
-      <item>
-       <widget class="QFrame" name="networkSummaryFrame">
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QVBoxLayout" name="networkSummaryLayout">
-         <property name="spacing">
-          <number>4</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="networkSummaryValue">
-           <property name="text">
-            <string>0 B/s</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 28px; font-weight: bold;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="networkSummaryTitle">
-           <property name="text">
-            <string>Network</string>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">font-size: 12px; color: gray;</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-        </layout>
+                     <item row="0" column="4">
+                      <widget class="QLabel" name="diskTotalTitleLabel">
+                       <property name="text">
+                        <string>Total</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="5">
+                      <widget class="QLabel" name="diskTotalValueLabel">
+                       <property name="text">
+                        <string>0.0 GB</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="networkPage">
+              <layout class="QVBoxLayout" name="networkPageLayout">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="networkTrafficToggleButton">
+                 <property name="text">
+                  <string>Network Traffic ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="networkTrafficSection">
+                 <layout class="QVBoxLayout" name="networkTrafficSectionLayout">
+                  <item>
+                   <widget class="QWidget" name="networkGraphContainer" native="true" />
+                  </item>
+                  <item>
+                   <widget class="QFrame" name="networkTrafficStatsFrame">
+                    <property name="frameShape">
+                     <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <layout class="QGridLayout" name="networkTrafficStatsLayout">
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="networkDownloadStatTitleLabel">
+                       <property name="text">
+                        <string>Download/s</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="networkDownloadStatValueLabel">
+                       <property name="text">
+                        <string>0 B/s</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="2">
+                      <widget class="QLabel" name="networkUploadStatTitleLabel">
+                       <property name="text">
+                        <string>Upload/s</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QLabel" name="networkUploadStatValueLabel">
+                       <property name="text">
+                        <string>0 B/s</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="4">
+                      <widget class="QLabel" name="networkTotalDownloadedStatTitleLabel">
+                       <property name="text">
+                        <string>Total Downloaded</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="5">
+                      <widget class="QLabel" name="networkTotalDownloadedStatValueLabel">
+                       <property name="text">
+                        <string>0 B</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="6">
+                      <widget class="QLabel" name="networkTotalUploadedStatTitleLabel">
+                       <property name="text">
+                        <string>Total Uploaded</string>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold;</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="7">
+                      <widget class="QLabel" name="networkTotalUploadedStatValueLabel">
+                       <property name="text">
+                        <string>0 B</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="networkInterfacesToggleButton">
+                 <property name="text">
+                  <string>Interface Traffic ▼</string>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">text-align: left; font-weight: bold;</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QWidget" name="networkInterfacesSection">
+                 <layout class="QVBoxLayout" name="networkInterfacesSectionLayout">
+                  <item>
+                   <widget class="QScrollArea" name="networkInterfacesScrollArea">
+                    <property name="widgetResizable">
+                     <bool>true</bool>
+                    </property>
+                    <property name="horizontalScrollBarPolicy">
+                     <enum>Qt::ScrollBarAlwaysOff</enum>
+                    </property>
+                    <property name="verticalScrollBarPolicy">
+                     <enum>Qt::ScrollBarAlwaysOff</enum>
+                    </property>
+                    <widget class="QWidget" name="networkInterfacesScrollWidget">
+                     <layout class="QGridLayout" name="networkInterfacesGridLayout">
+                      <property name="horizontalSpacing">
+                       <number>0</number>
+                      </property>
+                      <property name="verticalSpacing">
+                       <number>0</number>
+                      </property>
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                     </layout>
+                    </widget>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QWidget" name="processPane">
+         <layout class="QVBoxLayout" name="processPaneLayout">
+          <property name="spacing">
+           <number>8</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QFrame" name="processDividerFrame">
+            <property name="frameShape">
+             <enum>QFrame::HLine</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Sunken</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="processSectionLabel">
+            <property name="text">
+             <string>Processes</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">font-size: 16px; font-weight: bold;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTableWidget" name="processTable" />
+          </item>
+         </layout>
+        </widget>
        </widget>
       </item>
      </layout>
     </item>
-
-    <item>
-     <widget class="QLabel" name="processSectionLabel">
-      <property name="text">
-       <string>Processes</string>
-      </property>
-      <property name="styleSheet">
-       <string notr="true">font-size: 16px; font-weight: bold;</string>
-      </property>
-     </widget>
-    </item>
-
-    <item>
-     <widget class="QTableWidget" name="processTable"/>
-    </item>
-
-    <item>
-     <widget class="QLabel" name="statusLabel">
-      <property name="text">
-       <string>Status</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-      <property name="styleSheet">
-       <string notr="true">font-size: 13px; color: #555555;</string>
-      </property>
-     </widget>
-    </item>
-
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -257,13 +1082,12 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>980</width>
+     <width>1280</width>
      <height>24</height>
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
- <connections/>
+ <resources />
+ <connections />
 </ui>

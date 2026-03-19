@@ -63,7 +63,9 @@ bool ProcessTable::readProcStat(int pid,
                                 char &outState,
                                 long long &outUtime,
                                 long long &outStime,
-                                long long &outThreads)
+                                long long &outThreads,
+                                long long &outPriority,
+                                long long &outNice)
 {
     std::ifstream in("/proc/" + std::to_string(pid) + "/stat");
     if (!in)
@@ -92,14 +94,18 @@ bool ProcessTable::readProcStat(int pid,
     if (iss.fail())
         return false;
 
-    // In "rest":
-    // field 1 = state
-    // field 12 = utime
-    // field 13 = stime
-    // field 18 = num_threads
+    // After the process name:
+    // 1  = state
+    // 12 = utime
+    // 13 = stime
+    // 16 = priority
+    // 17 = nice
+    // 18 = num_threads
     std::string token;
     long long utime = 0;
     long long stime = 0;
+    long long priority = 0;
+    long long niceValue = 0;
     long long threads = 0;
 
     for (int field = 2; field <= 18; ++field)
@@ -107,52 +113,48 @@ bool ProcessTable::readProcStat(int pid,
         if (!(iss >> token))
             return false;
 
-        if (field == 12)
+        try
         {
-            try
-            {
+            if (field == 12)
                 utime = std::stoll(token);
-            }
-            catch (...)
-            {
-                return false;
-            }
-        }
-        else if (field == 13)
-        {
-            try
-            {
+            else if (field == 13)
                 stime = std::stoll(token);
-            }
-            catch (...)
-            {
-                return false;
-            }
-        }
-        else if (field == 18)
-        {
-            try
-            {
+            else if (field == 16)
+                priority = std::stoll(token);
+            else if (field == 17)
+                niceValue = std::stoll(token);
+            else if (field == 18)
                 threads = std::stoll(token);
-            }
-            catch (...)
-            {
+        }
+        catch (...)
+        {
+            if (field == 18)
                 threads = 0;
-            }
+            else
+                return false;
         }
     }
 
     outUtime = utime;
     outStime = stime;
     outThreads = threads;
+    outPriority = priority;
+    outNice = niceValue;
     return true;
 }
 
-long long ProcessTable::readVmRssKB(int pid)
+void ProcessTable::readMemoryFields(int pid,
+                                    long long &outVmRssKB,
+                                    long long &outVmSizeKB,
+                                    long long &outRssFileKB)
 {
+    outVmRssKB = 0;
+    outVmSizeKB = 0;
+    outRssFileKB = 0;
+
     std::ifstream in("/proc/" + std::to_string(pid) + "/status");
     if (!in)
-        return 0;
+        return;
 
     std::string key;
     while (in >> key)
@@ -161,14 +163,24 @@ long long ProcessTable::readVmRssKB(int pid)
         {
             long long kb = 0;
             in >> kb;
-            return (kb >= 0) ? kb : 0;
+            outVmRssKB = std::max<long long>(0, kb);
+        }
+        else if (key == "VmSize:")
+        {
+            long long kb = 0;
+            in >> kb;
+            outVmSizeKB = std::max<long long>(0, kb);
+        }
+        else if (key == "RssFile:")
+        {
+            long long kb = 0;
+            in >> kb;
+            outRssFileKB = std::max<long long>(0, kb);
         }
 
         std::string dummy;
         std::getline(in, dummy);
     }
-
-    return 0;
 }
 
 bool ProcessTable::readProcIo(int pid,
@@ -224,8 +236,10 @@ std::unordered_map<int, ProcSnap> ProcessTable::takeSnapshot()
         long long utime = 0;
         long long stime = 0;
         long long threads = 0;
+        long long priority = 0;
+        long long niceValue = 0;
 
-        if (!readProcStat(pid, name, state, utime, stime, threads))
+        if (!readProcStat(pid, name, state, utime, stime, threads, priority, niceValue))
             continue;
 
         ProcSnap snap;
@@ -252,13 +266,18 @@ std::optional<ProcInfoNow> ProcessTable::readProcInfoNow(int pid)
     long long utime = 0;
     long long stime = 0;
     long long threads = 0;
+    long long priority = 0;
+    long long niceValue = 0;
 
-    if (!readProcStat(pid, info.name, info.state, utime, stime, threads))
+    if (!readProcStat(pid, info.name, info.state, utime, stime, threads, priority, niceValue))
         return std::nullopt;
 
     info.cpuTicks = utime + stime;
     info.threads = threads;
-    info.rssKB = readVmRssKB(pid);
+    info.priority = priority;
+    info.niceValue = niceValue;
+
+    readMemoryFields(pid, info.rssKB, info.vszKB, info.sharedKB);
 
     unsigned long long r = 0;
     unsigned long long w = 0;
@@ -338,12 +357,22 @@ std::vector<ProcessRow> ProcessTable::readProcesses()
         row.pid = pid;
         row.name = infoNow.name;
         row.state = infoNow.state;
+
         row.cpuPercent = (static_cast<double>(procDelta) / static_cast<double>(totalDelta)) * 100.0;
-        row.rssMB = static_cast<double>(std::max<long long>(0, infoNow.rssKB)) / 1024.0;
+        row.cpuTimeSec = static_cast<double>(infoNow.cpuTicks) / static_cast<double>(hz);
         row.threads = infoNow.threads;
+
+        row.rssMB = static_cast<double>(std::max<long long>(0, infoNow.rssKB)) / 1024.0;
+        row.vszMB = static_cast<double>(std::max<long long>(0, infoNow.vszKB)) / 1024.0;
+        row.sharedMB = static_cast<double>(std::max<long long>(0, infoNow.sharedKB)) / 1024.0;
+
         row.readBytesPerSec = static_cast<long long>(static_cast<double>(readDiff) / seconds);
         row.writeBytesPerSec = static_cast<long long>(static_cast<double>(writeDiff) / seconds);
-        row.cpuTimeSec = static_cast<double>(infoNow.cpuTicks) / static_cast<double>(hz);
+        row.totalReadBytes = infoNow.readBytes;
+        row.totalWriteBytes = infoNow.writeBytes;
+
+        row.priority = infoNow.priority;
+        row.niceValue = infoNow.niceValue;
 
         rows.push_back(row);
     }

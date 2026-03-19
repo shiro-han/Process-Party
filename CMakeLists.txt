@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-# qt_standard_project_setup()
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -21,6 +20,10 @@ qt_add_executable(SystemMonitorDemo
     systemstats.h
     processtable.cpp
     processtable.h
+    linegraphwidget.cpp
+    linegraphwidget.h
+    bargraphwidget.cpp
+    bargraphwidget.h
 )
 
 target_link_libraries(SystemMonitorDemo PRIVATE Qt6::Widgets)
