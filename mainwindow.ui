@@ -1058,16 +1058,25 @@
           </item>
           <item>
            <widget class="QLabel" name="processSectionLabel">
-            <property name="text">
-             <string>Processes</string>
-            </property>
             <property name="styleSheet">
              <string notr="true">font-size: 16px; font-weight: bold;</string>
             </property>
+            <property name="text">
+             <string>Processes</string>
+            </property>
            </widget>
           </item>
+
           <item>
-           <widget class="QTableWidget" name="processTable" />
+           <widget class="QLineEdit" name="processSearchBar">
+            <property name="placeholderText">
+             <string>Search by name or PID.</string>
+            </property>
+           </widget>
+          </item>
+
+          <item>
+           <widget class="QTableWidget" name="processTable"/>
           </item>
          </layout>
         </widget>

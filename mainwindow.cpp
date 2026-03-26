@@ -107,6 +107,7 @@ MainWindow::MainWindow(QWidget *parent)
     updateSidebarHighlight();
     applyDefaultSplitterSizes();
 
+    connect(ui->processSearchBar, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
     connect(ui->sidebarToggleButton, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
 
     connect(ui->dashboardButton, &QPushButton::clicked, this, &MainWindow::showDashboardPage);
@@ -329,7 +330,6 @@ void MainWindow::setupGraphs()
 void MainWindow::toggleCpuUsageSection()
 {
     cpuUsageExpanded = !cpuUsageExpanded;
-    ui->cpuUsageSection->setVisible(cpuUsageExpanded);
     ui->cpuUsageToggleButton->setText(cpuUsageExpanded ? "CPU Usage ▼" : "CPU Usage ►");
 
     updateCurrentPageHeight();
@@ -342,7 +342,6 @@ void MainWindow::toggleCpuUsageSection()
 void MainWindow::toggleCpuPerCoreSection()
 {
     cpuPerCoreExpanded = !cpuPerCoreExpanded;
-    ui->cpuPerCoreSection->setVisible(cpuPerCoreExpanded);
 
     int coreCount = static_cast<int>(perCoreBars.size());
     ui->cpuPerCoreToggleButton->setText(
@@ -361,7 +360,6 @@ void MainWindow::toggleCpuPerCoreSection()
 void MainWindow::toggleMemoryUsageSection()
 {
     memoryUsageExpanded = !memoryUsageExpanded;
-    ui->memoryUsageSection->setVisible(memoryUsageExpanded);
     ui->memoryUsageToggleButton->setText(
         memoryUsageExpanded ? "Memory Usage ▼" : "Memory Usage ►"
         );
@@ -376,7 +374,6 @@ void MainWindow::toggleMemoryUsageSection()
 void MainWindow::toggleMemoryUsedAvailableSection()
 {
     memoryUsedAvailableExpanded = !memoryUsedAvailableExpanded;
-    ui->memoryUsedAvailableSection->setVisible(memoryUsedAvailableExpanded);
     ui->memoryUsedAvailableToggleButton->setText(
         memoryUsedAvailableExpanded ? "Used vs Available ▼" : "Used vs Available ►"
         );
@@ -391,7 +388,6 @@ void MainWindow::toggleMemoryUsedAvailableSection()
 void MainWindow::toggleMemoryCacheBuffersSection()
 {
     memoryCacheBuffersExpanded = !memoryCacheBuffersExpanded;
-    ui->memoryCacheBuffersSection->setVisible(memoryCacheBuffersExpanded);
     ui->memoryCacheBuffersToggleButton->setText(
         memoryCacheBuffersExpanded ? "Cache / Buffers ▼" : "Cache / Buffers ►"
         );
@@ -406,7 +402,6 @@ void MainWindow::toggleMemoryCacheBuffersSection()
 void MainWindow::toggleMemorySwapSection()
 {
     memorySwapExpanded = !memorySwapExpanded;
-    ui->memorySwapSection->setVisible(memorySwapExpanded);
     ui->memorySwapToggleButton->setText(memorySwapExpanded ? "Swap ▼" : "Swap ►");
 
     updateCurrentPageHeight();
@@ -416,10 +411,33 @@ void MainWindow::toggleMemorySwapSection()
     });
 }
 
+void MainWindow::onSearchTextChanged(const QString &text)
+{
+    QString query = text.trimmed();
+
+    for (int row = 0; row < ui->processTable->rowCount(); ++row) {
+        QTableWidgetItem *pidItem = ui->processTable->item(row, 1);   // PID column
+        QTableWidgetItem *nameItem = ui->processTable->item(row, 0);  // Name column
+
+        bool match = false;
+
+        if (query.isEmpty()) {
+            match = true;
+        } else {
+            QString pidText = pidItem ? pidItem->text() : "";
+            QString nameText = nameItem ? nameItem->text() : "";
+
+            match = pidText.startsWith(query) ||
+                    nameText.contains(query, Qt::CaseInsensitive);
+        }
+
+        ui->processTable->setRowHidden(row, !match);
+    }
+}
+
 void MainWindow::toggleDiskUsageSection()
 {
     diskUsageExpanded = !diskUsageExpanded;
-    ui->diskUsageSection->setVisible(diskUsageExpanded);
     ui->diskUsageToggleButton->setText(diskUsageExpanded ? "Disk Usage ▼" : "Disk Usage ►");
 
     updateCurrentPageHeight();
@@ -432,7 +450,6 @@ void MainWindow::toggleDiskUsageSection()
 void MainWindow::toggleDiskActivitySection()
 {
     diskActivityExpanded = !diskActivityExpanded;
-    ui->diskActivitySection->setVisible(diskActivityExpanded);
     ui->diskActivityToggleButton->setText(diskActivityExpanded ? "Disk Activity ▼" : "Disk Activity ►");
 
     updateCurrentPageHeight();
@@ -445,7 +462,6 @@ void MainWindow::toggleDiskActivitySection()
 void MainWindow::toggleNetworkTrafficSection()
 {
     networkTrafficExpanded = !networkTrafficExpanded;
-    ui->networkTrafficSection->setVisible(networkTrafficExpanded);
     ui->networkTrafficToggleButton->setText(
         networkTrafficExpanded ? "Network Traffic ▼" : "Network Traffic ►"
         );
@@ -460,7 +476,6 @@ void MainWindow::toggleNetworkTrafficSection()
 void MainWindow::toggleNetworkInterfacesSection()
 {
     networkInterfacesExpanded = !networkInterfacesExpanded;
-    ui->networkInterfacesSection->setVisible(networkInterfacesExpanded);
     ui->networkInterfacesToggleButton->setText(
         networkInterfacesExpanded ? "Interface Traffic ▼" : "Interface Traffic ►"
         );
@@ -1272,6 +1287,8 @@ void MainWindow::populateProcessTable(const std::vector<ProcessRow> &rows)
             }
         }
     }
+
+    onSearchTextChanged(ui->processSearchBar->text());
 }
 
 bool MainWindow::compareRows(const ProcessRow &a,

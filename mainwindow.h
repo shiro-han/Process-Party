@@ -116,6 +116,7 @@ private slots:
     void toggleNetworkInterfacesSection();
 
 private:
+    void onSearchTextChanged(const QString &text);
     void setupProcessTable();
     void rebuildProcessTableColumns();
     void populateProcessTable(const std::vector<ProcessRow> &rows);
