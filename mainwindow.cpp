@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "systemstats.h"
 
 #include <QHeaderView>
 #include <QTableWidgetItem>
@@ -104,10 +105,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->sidebarFrame->updateGeometry();
     ui->centralwidget->updateGeometry();
 
+    connect(ui->processSearchBar, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
+
     updateSidebarHighlight();
     applyDefaultSplitterSizes();
 
-    connect(ui->processSearchBar, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
     connect(ui->sidebarToggleButton, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
 
     connect(ui->dashboardButton, &QPushButton::clicked, this, &MainWindow::showDashboardPage);
@@ -140,22 +142,28 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->networkInterfacesToggleButton, &QPushButton::clicked,
             this, &MainWindow::toggleNetworkInterfacesSection);
 
+    // Move worker onto background thread
     statsWorker->moveToThread(workerThread);
 
+    // Timer fires on main thread → triggers worker on background thread
     connect(timer, &QTimer::timeout, this, &MainWindow::requestStats);
+
+    // Wire worker result back to main thread
     connect(this, &MainWindow::requestStats, statsWorker, &StatsWorker::run);
     connect(statsWorker, &StatsWorker::result, this, &MainWindow::onStatsResult);
     connect(workerThread, &QThread::finished, statsWorker, &QObject::deleteLater);
 
     workerThread->start();
+
+    // Default interval: 1000ms (1 second)
     timer->start(1000);
 
+    // Kick off first sample immediately without waiting for first tick
     emit requestStats();
 }
 
 MainWindow::~MainWindow()
 {
-    timer->stop();
     workerThread->quit();
     workerThread->wait();
     delete ui;
@@ -330,6 +338,7 @@ void MainWindow::setupGraphs()
 void MainWindow::toggleCpuUsageSection()
 {
     cpuUsageExpanded = !cpuUsageExpanded;
+    if (cpuGraph) cpuGraph->setVisible(cpuUsageExpanded);
     ui->cpuUsageToggleButton->setText(cpuUsageExpanded ? "CPU Usage ▼" : "CPU Usage ►");
 
     updateCurrentPageHeight();
@@ -342,7 +351,7 @@ void MainWindow::toggleCpuUsageSection()
 void MainWindow::toggleCpuPerCoreSection()
 {
     cpuPerCoreExpanded = !cpuPerCoreExpanded;
-
+    ui->cpuPerCoreScrollArea->setVisible(cpuPerCoreExpanded);
     int coreCount = static_cast<int>(perCoreBars.size());
     ui->cpuPerCoreToggleButton->setText(
         cpuPerCoreExpanded
@@ -360,6 +369,7 @@ void MainWindow::toggleCpuPerCoreSection()
 void MainWindow::toggleMemoryUsageSection()
 {
     memoryUsageExpanded = !memoryUsageExpanded;
+    if (memoryGraph) memoryGraph->setVisible(memoryUsageExpanded);
     ui->memoryUsageToggleButton->setText(
         memoryUsageExpanded ? "Memory Usage ▼" : "Memory Usage ►"
         );
@@ -374,6 +384,7 @@ void MainWindow::toggleMemoryUsageSection()
 void MainWindow::toggleMemoryUsedAvailableSection()
 {
     memoryUsedAvailableExpanded = !memoryUsedAvailableExpanded;
+    if (memoryUsedGraph) memoryUsedGraph->setVisible(memoryUsedAvailableExpanded);
     ui->memoryUsedAvailableToggleButton->setText(
         memoryUsedAvailableExpanded ? "Used vs Available ▼" : "Used vs Available ►"
         );
@@ -388,6 +399,7 @@ void MainWindow::toggleMemoryUsedAvailableSection()
 void MainWindow::toggleMemoryCacheBuffersSection()
 {
     memoryCacheBuffersExpanded = !memoryCacheBuffersExpanded;
+    if (memoryCacheGraph) memoryCacheGraph->setVisible(memoryCacheBuffersExpanded);
     ui->memoryCacheBuffersToggleButton->setText(
         memoryCacheBuffersExpanded ? "Cache / Buffers ▼" : "Cache / Buffers ►"
         );
@@ -402,8 +414,8 @@ void MainWindow::toggleMemoryCacheBuffersSection()
 void MainWindow::toggleMemorySwapSection()
 {
     memorySwapExpanded = !memorySwapExpanded;
+    if (memorySwapBar) memorySwapBar->setVisible(memorySwapExpanded);
     ui->memorySwapToggleButton->setText(memorySwapExpanded ? "Swap ▼" : "Swap ►");
-
     updateCurrentPageHeight();
 
     QTimer::singleShot(0, this, [this]() {
@@ -438,6 +450,7 @@ void MainWindow::onSearchTextChanged(const QString &text)
 void MainWindow::toggleDiskUsageSection()
 {
     diskUsageExpanded = !diskUsageExpanded;
+    if (diskBarGraph) diskBarGraph->setVisible(diskUsageExpanded);
     ui->diskUsageToggleButton->setText(diskUsageExpanded ? "Disk Usage ▼" : "Disk Usage ►");
 
     updateCurrentPageHeight();
@@ -450,6 +463,7 @@ void MainWindow::toggleDiskUsageSection()
 void MainWindow::toggleDiskActivitySection()
 {
     diskActivityExpanded = !diskActivityExpanded;
+    if (diskGraph) diskGraph->setVisible(diskActivityExpanded);
     ui->diskActivityToggleButton->setText(diskActivityExpanded ? "Disk Activity ▼" : "Disk Activity ►");
 
     updateCurrentPageHeight();
@@ -462,6 +476,7 @@ void MainWindow::toggleDiskActivitySection()
 void MainWindow::toggleNetworkTrafficSection()
 {
     networkTrafficExpanded = !networkTrafficExpanded;
+    if (networkGraph) networkGraph->setVisible(networkTrafficExpanded);
     ui->networkTrafficToggleButton->setText(
         networkTrafficExpanded ? "Network Traffic ▼" : "Network Traffic ►"
         );
@@ -476,6 +491,7 @@ void MainWindow::toggleNetworkTrafficSection()
 void MainWindow::toggleNetworkInterfacesSection()
 {
     networkInterfacesExpanded = !networkInterfacesExpanded;
+    ui->networkInterfacesScrollArea->setVisible(networkInterfacesExpanded);
     ui->networkInterfacesToggleButton->setText(
         networkInterfacesExpanded ? "Interface Traffic ▼" : "Interface Traffic ►"
         );
@@ -1145,11 +1161,25 @@ QString MainWindow::columnText(const ProcessRow &row, ProcessColumn column) cons
 
 void MainWindow::setupProcessTable()
 {
+    ui->processTable->setColumnCount(9);
+    QStringList headers;
+    headers << "PID"
+            << "Name"
+            << "State"
+            << "CPU %"
+            << "RSS MB"
+            << "Threads"
+            << "Read/s"
+            << "Write/s"
+            << "CPU Time";
+    ui->processTable->setHorizontalHeaderLabels(headers);
     ui->processTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->processTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->processTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->processTable->setAlternatingRowColors(true);
     ui->processTable->verticalHeader()->setVisible(false);
+    ui->processTable->horizontalHeader()->setStretchLastSection(true);
+    ui->processTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     ui->processTable->setShowGrid(true);
     ui->processTable->setGridStyle(Qt::SolidLine);
