@@ -90,6 +90,8 @@ signals:
     void requestStats();
 
 private slots:
+
+    void showProcessContextMenu(const QPoint &pos);
     void onStatsResult(SystemData data, std::vector<ProcessRow> rows);
     void onProcessHeaderClicked(int logicalIndex);
     void showProcessHeaderMenu(const QPoint &pos);
@@ -116,6 +118,7 @@ private slots:
     void toggleNetworkInterfacesSection();
 
 private:
+    void sendSignalToSelectedProcess(int signal);
     void onSearchTextChanged(const QString &text);
     void setupProcessTable();
     void rebuildProcessTableColumns();

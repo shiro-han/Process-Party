@@ -15,6 +15,10 @@
 #include <QProgressBar>
 #include <QScrollBar>
 #include <QTimer>
+#include <QMessageBox>
+#include <signal.h>
+#include <errno.h>
+#include <cstring>
 
 #include <algorithm>
 
@@ -1207,6 +1211,9 @@ void MainWindow::setupProcessTable()
     ui->mainVerticalSplitter->setStretchFactor(0, 3);
     ui->mainVerticalSplitter->setStretchFactor(1, 2);
     ui->mainVerticalSplitter->setChildrenCollapsible(false);
+    ui->processTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->processTable, &QTableWidget::customContextMenuRequested,
+            this, &MainWindow::showProcessContextMenu);
 }
 
 void MainWindow::rebuildProcessTableColumns()
@@ -1505,4 +1512,100 @@ void MainWindow::onStatsResult(SystemData data, std::vector<ProcessRow> rows)
 
     baseRows = rows;
     populateProcessTable(applySorting(baseRows));
+}
+
+// right click for Process
+void MainWindow::showProcessContextMenu(const QPoint &pos)
+{
+    QTableWidgetItem *item = ui->processTable->itemAt(pos);
+    if (!item)
+        return;
+
+    QMenu menu(this);
+    QAction *terminateAction = menu.addAction("Terminate Process (SIGTERM)");
+    QAction *killAction = menu.addAction("Kill Process (SIGKILL)");
+
+    connect(terminateAction, &QAction::triggered, this, [this]() {
+        sendSignalToSelectedProcess(SIGTERM);
+    });
+    connect(killAction, &QAction::triggered, this, [this]() {
+        sendSignalToSelectedProcess(SIGKILL);
+    });
+
+    menu.exec(ui->processTable->viewport()->mapToGlobal(pos));
+}
+
+void MainWindow::sendSignalToSelectedProcess(int signal)
+{
+    int row = ui->processTable->currentRow();
+    if (row < 0)
+        return;
+
+    int pidColIndex = -1;
+    for (int i = 0; i < static_cast<int>(visibleColumns.size()); ++i)
+    {
+        if (visibleColumns[i] == ProcessColumn::PID)
+        {
+            pidColIndex = i;
+            break;
+        }
+    }
+
+    if (pidColIndex < 0)
+        return;
+
+    QTableWidgetItem *pidItem = ui->processTable->item(row, pidColIndex);
+    QTableWidgetItem *nameItem = ui->processTable->item(row, 0);
+    if (!pidItem || !nameItem)
+        return;
+
+    int pid = pidItem->text().toInt();
+    if (pid <= 0)
+        return;
+
+    QString signalName = (signal == SIGKILL) ? "Kill (SIGKILL)" : "Terminate (SIGTERM)";
+    QString confirmMsg = (signal == SIGKILL)
+        ? "This will immediately and forcefully kill the process with no chance to clean up."
+        : "This will ask the process to shut down cleanly.";
+
+    QMessageBox::StandardButton reply = QMessageBox::warning(
+        this,
+        signalName,
+        QString("%1\n\nProcess: %2 (PID %3)\n\nContinue?")
+            .arg(confirmMsg)
+            .arg(nameItem->text())
+            .arg(pid),
+        QMessageBox::Yes | QMessageBox::Cancel
+    );
+
+    if (reply != QMessageBox::Yes)
+        return;
+
+    if (kill(pid, signal) == 0)
+    {
+        QString successMsg = (signal == SIGTERM)
+            ? QString("Terminate signal sent to process %1 (PID %2).\nIt may take a moment to stop.")
+                .arg(nameItem->text()).arg(pid)
+            : QString("Process %1 (PID %2) was killed.")
+                .arg(nameItem->text()).arg(pid);
+
+        QMessageBox::information(this, "Success", successMsg);
+    }
+    else
+    {
+        QString reason;
+        if (errno == EPERM)
+            reason = "Permission denied — you may need to run as root to kill this process.";
+        else if (errno == ESRCH)
+            reason = "Process no longer exists.";
+        else
+            reason = QString::fromLocal8Bit(strerror(errno));
+
+        QMessageBox::critical(this, "Error",
+            QString("Failed to send %1 to process %2 (PID %3):\n%4")
+                .arg(signalName)
+                .arg(nameItem->text())
+                .arg(pid)
+                .arg(reason));
+    }
 }
