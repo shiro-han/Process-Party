@@ -376,22 +376,16 @@ void LineGraphWidget::mousePressEvent(QMouseEvent *event)
 void LineGraphWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
-
     m_legendItems.clear();
-
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
-
     painter.fillRect(rect(), palette().window());
 
-    QRectF outer = rect().adjusted(4, 4, -4, -4);
-
-    painter.setPen(QPen(palette().mid().color(), 1));
-    painter.drawRoundedRect(outer, 6, 6);
-
-    QRectF titleRect = outer.adjusted(8, 6, -8, 0);
+    // Define outer rect for layout calculations
+    QRectF outer = rect().adjusted(16, 16, -16, -24);
 
     bool hasHeader = m_showTitle || m_showSummaryText;
+    QRectF titleRect = outer.adjusted(8, 6, -8, 0);
 
     if (m_showTitle)
     {
@@ -399,7 +393,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         titleFont.setBold(true);
         titleFont.setPointSize(titleFont.pointSize());
         painter.setFont(titleFont);
-
         painter.setPen(palette().text().color());
         painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignTop, m_title);
     }
@@ -409,13 +402,11 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         QFont valueFont = painter.font();
         valueFont.setBold(false);
         painter.setFont(valueFont);
-
         painter.setPen(palette().text().color());
         painter.drawText(titleRect, Qt::AlignRight | Qt::AlignTop, latestSummaryText());
     }
 
     bool hasLegend = !m_series.empty();
-
     int topInset = hasHeader ? 28 : 8;
     if (hasLegend)
         topInset += 20;
@@ -427,8 +418,8 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     if (maxValue <= minValue)
         maxValue = minValue + 1.0;
 
+    // Grid lines
     painter.setPen(QPen(palette().midlight().color(), 1, Qt::DashLine));
-
     const int gridLines = 4;
     for (int i = 0; i <= gridLines; ++i)
     {
@@ -441,9 +432,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         double x = plotRect.left() + (plotRect.width() * i) / 5.0;
         painter.drawLine(QPointF(x, plotRect.top()), QPointF(x, plotRect.bottom()));
     }
-
-    painter.setPen(QPen(palette().dark().color(), 1));
-    painter.drawRect(plotRect);
 
     bool hasData = !m_samples.empty();
     for (const Series &series : m_series)
@@ -461,14 +449,12 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         return;
     }
 
+    // Legend and line drawing
     if (!m_series.empty())
     {
         const std::vector<QColor> lineColors = {
-            QColor(37, 99, 235),
-            QColor(22, 163, 74),
-            QColor(220, 38, 38),
-            QColor(168, 85, 247),
-            QColor(234, 88, 12)
+            QColor(37, 99, 235), QColor(22, 163, 74), QColor(220, 38, 38),
+            QColor(168, 85, 247), QColor(234, 88, 12)
         };
 
         int legendY = static_cast<int>(outer.top()) + (hasHeader ? 24 : 8);
@@ -478,7 +464,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         {
             const Series &series = m_series[s];
             QColor color = lineColors[s % lineColors.size()];
-
             QRect boxRect(legendX, legendY, 12, 12);
             painter.setBrush(series.visible ? color : palette().mid().color());
             painter.setPen(QPen(palette().dark().color(), 1));
@@ -490,9 +475,7 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
             painter.setPen(palette().text().color());
             QString name = series.name.isEmpty() ? QString("Series %1").arg(s + 1) : series.name;
             painter.drawText(QRectF(legendX + 16, legendY - 3, 80, 18),
-                             Qt::AlignLeft | Qt::AlignVCenter,
-                             name);
-
+                             Qt::AlignLeft | Qt::AlignVCenter, name);
             legendX += 90;
         }
 
@@ -503,10 +486,8 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
                 continue;
 
             QColor color = lineColors[s % lineColors.size()];
-
             QPainterPath path;
             bool started = false;
-
             int sampleSlots = std::max(2, m_maxSamples);
             int offset = std::max(0, sampleSlots - static_cast<int>(series.samples.size()));
 
@@ -514,7 +495,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
             {
                 int graphIndex = offset + i;
                 QPointF pt = graphPoint(graphIndex, series.samples[i], plotRect, minValue, maxValue, sampleSlots);
-
                 if (!started)
                 {
                     path.moveTo(pt);
@@ -525,18 +505,12 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
                     path.lineTo(pt);
                 }
             }
-
             painter.setPen(QPen(color, 2));
             painter.setBrush(Qt::NoBrush);
             painter.drawPath(path);
 
             QPointF lastPoint = graphPoint(offset + static_cast<int>(series.samples.size()) - 1,
-                                           series.samples.back(),
-                                           plotRect,
-                                           minValue,
-                                           maxValue,
-                                           sampleSlots);
-
+                                           series.samples.back(), plotRect, minValue, maxValue, sampleSlots);
             painter.setBrush(color);
             painter.setPen(Qt::NoPen);
             painter.drawEllipse(lastPoint, 4, 4);
@@ -544,9 +518,9 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     }
     else
     {
+        // Single series fallback
         QPainterPath path;
         bool started = false;
-
         int sampleSlots = std::max(2, m_maxSamples);
         int offset = std::max(0, sampleSlots - static_cast<int>(m_samples.size()));
 
@@ -554,7 +528,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         {
             int graphIndex = offset + i;
             QPointF pt = graphPoint(graphIndex, m_samples[i], plotRect, minValue, maxValue, sampleSlots);
-
             if (!started)
             {
                 path.moveTo(pt);
@@ -565,22 +538,15 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
                 path.lineTo(pt);
             }
         }
-
         QPen linePen(palette().highlight().color(), 2);
         painter.setPen(linePen);
         painter.setBrush(Qt::NoBrush);
         painter.drawPath(path);
 
         QPointF lastPoint = graphPoint(offset + static_cast<int>(m_samples.size()) - 1,
-                                       m_samples.back(),
-                                       plotRect,
-                                       minValue,
-                                       maxValue,
-                                       sampleSlots);
-
+                                       m_samples.back(), plotRect, minValue, maxValue, sampleSlots);
         painter.setBrush(palette().highlight());
         painter.setPen(Qt::NoPen);
         painter.drawEllipse(lastPoint, 4, 4);
     }
-
 }

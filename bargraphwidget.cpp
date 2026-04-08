@@ -100,10 +100,7 @@ void BarGraphWidget::paintEvent(QPaintEvent *event)
 
     painter.fillRect(rect(), palette().window());
 
-    QRectF outer = rect().adjusted(8, 4, -8, -4);
-
-    painter.setPen(QPen(palette().mid().color(), 1));
-    painter.drawRoundedRect(outer, 8, 8);
+    QRectF outer = rect().adjusted(12, 8, -12, -8);
 
     QFont valueFont = painter.font();
     valueFont.setBold(false);

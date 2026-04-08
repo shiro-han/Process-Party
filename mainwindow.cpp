@@ -86,10 +86,20 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Set window and taskbar icon
+    ui->setupUi(this);
+
+    ui->setupUi(this);
+
+    // ICON
     QIcon appIcon(":/capyy_2.png");
-    setWindowIcon(appIcon);
-    qApp->setWindowIcon(appIcon);
+
+    if (!appIcon.isNull()) {
+        setWindowIcon(appIcon);
+        qApp->setWindowIcon(appIcon);
+        QApplication::setWindowIcon(appIcon);
+    } else {
+        qWarning() << "Warning: Could not load application icon ':/capyy_2.png'";
+    }
 
     // Set logo in sidebar
     QPixmap logo(":/capyy_2.png");
@@ -985,16 +995,18 @@ void MainWindow::updateCurrentPageHeight()
 
 void MainWindow::setNavButtonActive(QPushButton *button, bool active)
 {
-    QColor accent = currentTheme.value("accent", QColor("#3b82f6"));
-    QColor sectionHeader = currentTheme.value("sectionHeader", QColor("#f1f5f9"));
-    QColor textColor = currentTheme.value("text", QColor("#1e2937"));
+    QColor accent       = currentTheme.value("accent",       QColor("#3b82f6"));
+    QColor sectionHeader= currentTheme.value("sectionHeader", QColor("#f1f5f9"));
+    QColor borderColor  = currentTheme.value("border",       QColor("#64748b"));
+    QColor textColor    = currentTheme.value("text",         QColor("#1e2937"));
 
     if (active)
     {
+        // Active button
         button->setStyleSheet(QString(
             "QPushButton {"
             " font-weight: bold;"
-            " background-color: %1;"     // Accent when active
+            " background-color: %1;"
             " color: %2;"
             " border: 2px solid %3;"
             " border-radius: 6px;"
@@ -1003,22 +1015,24 @@ void MainWindow::setNavButtonActive(QPushButton *button, bool active)
             "}"
         ).arg(accent.name())
          .arg(textColor.name())
-         .arg(accent.darker(130).name()));
+         .arg(borderColor.name()));
     }
     else
     {
+        // Inactive buttons: Section Header background + Border Color outline
         button->setStyleSheet(QString(
             "QPushButton {"
             " font-weight: normal;"
-            " background-color: %1;"     // Section Header when inactive
+            " background-color: %1;"
             " color: %2;"
-            " border: 1px solid #cfcfcf;"
+            " border: 2px solid %3;"
             " border-radius: 6px;"
             " padding: 6px 8px;"
             " text-align: left;"
             "}"
         ).arg(sectionHeader.name())
-         .arg(textColor.name()));
+         .arg(textColor.name())
+         .arg(borderColor.name()));
     }
 }
 
@@ -1668,6 +1682,7 @@ void MainWindow::applyTheme()
     QColor sectionHeader= currentTheme.value("sectionHeader",QColor("#f1f5f9"));
     QColor text         = currentTheme.value("text",         QColor("#1e2937"));
     QColor altRow       = currentTheme.value("tableAlt",     QColor("#f1f5f9"));
+    QColor borderColor  = currentTheme.value("border",       QColor("#64748b"));
 
     QPalette pal = palette();
     pal.setColor(QPalette::Window, bg);
@@ -1677,19 +1692,18 @@ void MainWindow::applyTheme()
     pal.setColor(QPalette::Text, text);
     pal.setColor(QPalette::ButtonText, text);
     pal.setColor(QPalette::Highlight, accent);
-    pal.setColor(QPalette::HighlightedText, Qt::white);
+    pal.setColor(QPalette::HighlightedText, text.lightness() > 128 ? Qt::black : Qt::white);
 
     setPalette(pal);
     qApp->setPalette(pal);
 
     QString textStyle = QString("color: %1;").arg(text.name());
 
-    // Main Titles
+    // Force text color everywhere
     if (ui->pageTitleLabel) ui->pageTitleLabel->setStyleSheet("font-size: 22px; font-weight: bold; " + textStyle);
     if (ui->sidebarTitleLabel) ui->sidebarTitleLabel->setStyleSheet("font-size: 20px; font-weight: bold; " + textStyle);
     if (ui->processSectionLabel) ui->processSectionLabel->setStyleSheet("font-size: 16px; font-weight: bold; " + textStyle);
 
-    // All Stat Title Labels
     QString statTitleStyle = "font-weight: bold; " + textStyle;
 
     // CPU Stats
@@ -1703,45 +1717,34 @@ void MainWindow::applyTheme()
     if (ui->cpuSystemAverageTitleLabel) ui->cpuSystemAverageTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->cpuSystemPeakTitleLabel) ui->cpuSystemPeakTitleLabel->setStyleSheet(statTitleStyle);
 
-    // Memory Stats
+    // Memory, Disk, Network titles
     if (ui->memoryTotalTitleLabel) ui->memoryTotalTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->memoryUsedTitleLabel) ui->memoryUsedTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->memoryAvailableTitleLabel) ui->memoryAvailableTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memoryUsedStatTitleLabel) ui->memoryUsedStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memoryAvailableStatTitleLabel) ui->memoryAvailableStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memoryCacheStatTitleLabel) ui->memoryCacheStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memoryBuffersStatTitleLabel) ui->memoryBuffersStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memorySwapTotalTitleLabel) ui->memorySwapTotalTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memorySwapUsedTitleLabel) ui->memorySwapUsedTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->memorySwapFreeTitleLabel) ui->memorySwapFreeTitleLabel->setStyleSheet(statTitleStyle);
-
-    // Disk Stats
     if (ui->diskReadStatTitleLabel) ui->diskReadStatTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->diskWriteStatTitleLabel) ui->diskWriteStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->diskUsedTitleLabel) ui->diskUsedTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->diskFreeTitleLabel) ui->diskFreeTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->diskTotalTitleLabel) ui->diskTotalTitleLabel->setStyleSheet(statTitleStyle);
-
-    // Network Stats
     if (ui->networkDownloadStatTitleLabel) ui->networkDownloadStatTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->networkUploadStatTitleLabel) ui->networkUploadStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->networkTotalDownloadedStatTitleLabel) ui->networkTotalDownloadedStatTitleLabel->setStyleSheet(statTitleStyle);
-    if (ui->networkTotalUploadedStatTitleLabel) ui->networkTotalUploadedStatTitleLabel->setStyleSheet(statTitleStyle);
 
-    // All Buttons (Navigation + Toggles + Sidebar)
+    // All Buttons with Border Color
     QString buttonStyle = QString(
-        "background-color: %1; color: %2; font-weight: bold; "
-        "padding: 6px 8px; text-align: left; border-radius: 6px; border: 1px solid #cfcfcf;"
-    ).arg(sectionHeader.name()).arg(text.name());
+        "background-color: %1; "
+        "color: %2; "
+        "font-weight: bold; "
+        "padding: 6px 8px; "
+        "text-align: left; "
+        "border-radius: 6px; "
+        "border: 2px solid %3;"
+    ).arg(sectionHeader.name())
+     .arg(text.name())
+     .arg(borderColor.name());
 
-    // Main Navigation
     if (ui->dashboardButton) ui->dashboardButton->setStyleSheet(buttonStyle);
     if (ui->cpuButton) ui->cpuButton->setStyleSheet(buttonStyle);
     if (ui->memoryButton) ui->memoryButton->setStyleSheet(buttonStyle);
     if (ui->diskButton) ui->diskButton->setStyleSheet(buttonStyle);
     if (ui->networkButton) ui->networkButton->setStyleSheet(buttonStyle);
 
-    // Toggle Buttons
     if (ui->cpuUsageToggleButton) ui->cpuUsageToggleButton->setStyleSheet(buttonStyle);
     if (ui->cpuPerCoreToggleButton) ui->cpuPerCoreToggleButton->setStyleSheet(buttonStyle);
     if (ui->memoryUsageToggleButton) ui->memoryUsageToggleButton->setStyleSheet(buttonStyle);
@@ -1753,7 +1756,6 @@ void MainWindow::applyTheme()
     if (ui->networkTrafficToggleButton) ui->networkTrafficToggleButton->setStyleSheet(buttonStyle);
     if (ui->networkInterfacesToggleButton) ui->networkInterfacesToggleButton->setStyleSheet(buttonStyle);
 
-    // Sidebar Buttons
     if (ui->sidebarToggleButton) ui->sidebarToggleButton->setStyleSheet(buttonStyle);
     if (ui->settingsButton) ui->settingsButton->setStyleSheet(buttonStyle);
 
@@ -1766,15 +1768,40 @@ void MainWindow::applyTheme()
     if (ui->processTable && ui->processTable->horizontalHeader())
         ui->processTable->horizontalHeader()->setStyleSheet(headerStyle);
 
-    // Accent effects
+    // Process Table + Graphs
+    QString tableStyle = QString(
+        "QTableWidget { border: 2px solid %1; gridline-color: %2; selection-background-color: %3; }"
+    ).arg(borderColor.name())
+     .arg(borderColor.lighter(180).name())
+     .arg(accent.name());
+
+    if (ui->processTable)
+        ui->processTable->setStyleSheet(tableStyle);
+
+    QString graphBorderStyle = QString(
+        "QWidget { border: 2px solid %1; border-radius: 8px; background-color: transparent; }"
+    ).arg(borderColor.name());
+
+    if (ui->dashboardCpuGraphContainer) ui->dashboardCpuGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->dashboardMemoryGraphContainer) ui->dashboardMemoryGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->dashboardDiskGraphContainer) ui->dashboardDiskGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->dashboardNetworkGraphContainer) ui->dashboardNetworkGraphContainer->setStyleSheet(graphBorderStyle);
+
+    if (ui->cpuGraphContainer) ui->cpuGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->memoryGraphContainer) ui->memoryGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->memoryUsedGraphContainer) ui->memoryUsedGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->memoryCacheGraphContainer) ui->memoryCacheGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->diskGraphContainer) ui->diskGraphContainer->setStyleSheet(graphBorderStyle);
+    if (ui->networkGraphContainer) ui->networkGraphContainer->setStyleSheet(graphBorderStyle);
+
+    // Hover effects
     QString extraStyle = QString(
         "QPushButton:hover { background-color: %1; color: white; }"
         "QProgressBar::chunk { background-color: %1; }"
-        "QTableWidget { selection-background-color: %1; }"
     ).arg(accent.name());
 
     if (ui->processTable)
-        ui->processTable->setStyleSheet(extraStyle);
+        ui->processTable->setStyleSheet(ui->processTable->styleSheet() + extraStyle);
 }
 
 void MainWindow::showSettingsDialog()
@@ -1805,24 +1832,29 @@ void MainWindow::showSettingsDialog()
          .arg(current.lightness() > 130 ? "black" : "white"));
 
         connect(btn, &QPushButton::clicked, this, [this, btn, key, label]() {
-            // This forces the FULL color wheel (rainbow HSV picker)
-            QColor chosen = QColorDialog::getColor(
-                currentTheme.value(key),
-                this,
-                "Choose " + label,
-                QColorDialog::ShowAlphaChannel | QColorDialog::DontUseNativeDialog
-            );
+            QColorDialog dlg(this);
+            dlg.setWindowTitle("Choose " + label);
+            dlg.setCurrentColor(currentTheme.value(key));
+            dlg.setOption(QColorDialog::ShowAlphaChannel, false);
 
-            if (chosen.isValid()) {
-                currentTheme[key] = chosen;
-                btn->setStyleSheet(QString(
-                    "background-color: %1; "
-                    "color: %2; "
-                    "font-weight: bold; "
-                    "border: 2px solid #555; "
-                    "border-radius: 6px;"
-                ).arg(chosen.name())
-                 .arg(chosen.lightness() > 130 ? "black" : "white"));
+            // Full color wheel
+            dlg.setOption(QColorDialog::DontUseNativeDialog, true);
+            dlg.setModal(true);
+            dlg.setWindowModality(Qt::ApplicationModal);
+
+            if (dlg.exec() == QDialog::Accepted) {
+                QColor chosen = dlg.currentColor();
+                if (chosen.isValid()) {
+                    currentTheme[key] = chosen;
+                    btn->setStyleSheet(QString(
+                        "background-color: %1; "
+                        "color: %2; "
+                        "font-weight: bold; "
+                        "border: 2px solid #555; "
+                        "border-radius: 6px;"
+                    ).arg(chosen.name())
+                     .arg(chosen.lightness() > 130 ? "black" : "white"));
+                }
             }
         });
 
@@ -1835,6 +1867,7 @@ void MainWindow::showSettingsDialog()
     addColorButton("Text Color", "text", QColor("#1e2937"));
     addColorButton("Table Primary", "panel", QColor("#ffffff"));
     addColorButton("Table Alternate", "tableAlt", QColor("#f1f5f9"));
+    addColorButton("Border Color", "border", QColor("#64748b"));
 
     // === Font Selection ===
     mainLayout->addSpacing(20);
@@ -1843,21 +1876,48 @@ void MainWindow::showSettingsDialog()
     QHBoxLayout *fontLayout = new QHBoxLayout();
     QLabel *fontLabel = new QLabel("Application Font:");
     QFontComboBox *fontCombo = new QFontComboBox();
+
     fontCombo->setCurrentFont(qApp->font());
+    fontCombo->setMinimumHeight(32);
+    fontCombo->setFocusPolicy(Qt::StrongFocus);
 
     fontLayout->addWidget(fontLabel);
     fontLayout->addWidget(fontCombo, 1);
     mainLayout->addLayout(fontLayout);
 
-    // Presets
+    // === Quick Presets ===
     mainLayout->addSpacing(20);
     mainLayout->addWidget(new QLabel("<b>Quick Presets</b>"));
 
     QHBoxLayout *presetLayout = new QHBoxLayout();
     QPushButton *lightBtn = new QPushButton("Light Mode");
     QPushButton *darkBtn  = new QPushButton("Dark Mode");
-    lightBtn->setMinimumHeight(45);
-    darkBtn->setMinimumHeight(45);
+
+    lightBtn->setMinimumHeight(48);
+    darkBtn->setMinimumHeight(48);
+
+    // Special styling so presets are always readable
+    lightBtn->setStyleSheet(
+        "QPushButton {"
+        " background-color: #f0f0f0;"
+        " color: #1e2937;"
+        " font-weight: bold;"
+        " border: 2px solid #d0d0d0;"
+        " border-radius: 6px;"
+        "}"
+        "QPushButton:hover { background-color: #e0e0e0; }"
+    );
+
+    darkBtn->setStyleSheet(
+        "QPushButton {"
+        " background-color: #2a2a2a;"
+        " color: #e0e0e0;"
+        " font-weight: bold;"
+        " border: 2px solid #555555;"
+        " border-radius: 6px;"
+        "}"
+        "QPushButton:hover { background-color: #333333; }"
+    );
 
     presetLayout->addWidget(lightBtn);
     presetLayout->addWidget(darkBtn);
