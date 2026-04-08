@@ -51,6 +51,7 @@
        <property name="spacing">
         <number>10</number>
        </property>
+
        <item>
         <widget class="QPushButton" name="sidebarToggleButton">
          <property name="text">
@@ -58,6 +59,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QLabel" name="sidebarTitleLabel">
          <property name="text">
@@ -71,6 +73,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QPushButton" name="dashboardButton">
          <property name="text">
@@ -78,6 +81,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QPushButton" name="cpuButton">
          <property name="text">
@@ -85,6 +89,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QPushButton" name="memoryButton">
          <property name="text">
@@ -92,6 +97,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QPushButton" name="diskButton">
          <property name="text">
@@ -99,6 +105,7 @@
          </property>
         </widget>
        </item>
+
        <item>
         <widget class="QPushButton" name="networkButton">
          <property name="text">
@@ -106,6 +113,8 @@
          </property>
         </widget>
        </item>
+
+       <!-- Spacer to push Settings to bottom -->
        <item>
         <spacer name="sidebarSpacer">
          <property name="orientation">
@@ -118,6 +127,15 @@
           </size>
          </property>
         </spacer>
+       </item>
+
+       <!-- Settings Button -->
+       <item>
+        <widget class="QPushButton" name="settingsButton">
+         <property name="text">
+          <string>Settings</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

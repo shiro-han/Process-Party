@@ -118,6 +118,14 @@ private slots:
     void toggleNetworkInterfacesSection();
 
 private:
+
+    QMap<QString, QColor> currentTheme;
+
+    void showSettingsDialog();
+    void applyTheme();
+    void loadThemeSettings();
+    void saveThemeSettings();
+
     void sendSignalToSelectedProcess(int signal);
     void onSearchTextChanged(const QString &text);
     void setupProcessTable();

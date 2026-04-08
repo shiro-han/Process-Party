@@ -24,6 +24,7 @@ qt_add_executable(SystemMonitorDemo
     linegraphwidget.h
     bargraphwidget.cpp
     bargraphwidget.h
+    resources.qrc
 )
 
 target_link_libraries(SystemMonitorDemo PRIVATE Qt6::Widgets)
