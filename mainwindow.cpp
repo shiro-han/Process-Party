@@ -1683,37 +1683,64 @@ void MainWindow::applyTheme()
 
     QString textStyle = QString("color: %1;").arg(text.name());
 
-    // Page titles
+    // Main Titles
     if (ui->pageTitleLabel) ui->pageTitleLabel->setStyleSheet("font-size: 22px; font-weight: bold; " + textStyle);
     if (ui->sidebarTitleLabel) ui->sidebarTitleLabel->setStyleSheet("font-size: 20px; font-weight: bold; " + textStyle);
+    if (ui->processSectionLabel) ui->processSectionLabel->setStyleSheet("font-size: 16px; font-weight: bold; " + textStyle);
 
-    // All inactive buttons
+    // All Stat Title Labels
+    QString statTitleStyle = "font-weight: bold; " + textStyle;
+
+    // CPU Stats
+    if (ui->cpuCurrentTitleLabel) ui->cpuCurrentTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuAverageTitleLabel) ui->cpuAverageTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuPeakTitleLabel) ui->cpuPeakTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuUserCurrentTitleLabel) ui->cpuUserCurrentTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuUserAverageTitleLabel) ui->cpuUserAverageTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuUserPeakTitleLabel) ui->cpuUserPeakTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuSystemCurrentTitleLabel) ui->cpuSystemCurrentTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuSystemAverageTitleLabel) ui->cpuSystemAverageTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->cpuSystemPeakTitleLabel) ui->cpuSystemPeakTitleLabel->setStyleSheet(statTitleStyle);
+
+    // Memory Stats
+    if (ui->memoryTotalTitleLabel) ui->memoryTotalTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryUsedTitleLabel) ui->memoryUsedTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryAvailableTitleLabel) ui->memoryAvailableTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryUsedStatTitleLabel) ui->memoryUsedStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryAvailableStatTitleLabel) ui->memoryAvailableStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryCacheStatTitleLabel) ui->memoryCacheStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memoryBuffersStatTitleLabel) ui->memoryBuffersStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memorySwapTotalTitleLabel) ui->memorySwapTotalTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memorySwapUsedTitleLabel) ui->memorySwapUsedTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->memorySwapFreeTitleLabel) ui->memorySwapFreeTitleLabel->setStyleSheet(statTitleStyle);
+
+    // Disk Stats
+    if (ui->diskReadStatTitleLabel) ui->diskReadStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->diskWriteStatTitleLabel) ui->diskWriteStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->diskUsedTitleLabel) ui->diskUsedTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->diskFreeTitleLabel) ui->diskFreeTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->diskTotalTitleLabel) ui->diskTotalTitleLabel->setStyleSheet(statTitleStyle);
+
+    // Network Stats
+    if (ui->networkDownloadStatTitleLabel) ui->networkDownloadStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->networkUploadStatTitleLabel) ui->networkUploadStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->networkTotalDownloadedStatTitleLabel) ui->networkTotalDownloadedStatTitleLabel->setStyleSheet(statTitleStyle);
+    if (ui->networkTotalUploadedStatTitleLabel) ui->networkTotalUploadedStatTitleLabel->setStyleSheet(statTitleStyle);
+
+    // All Buttons (Navigation + Toggles + Sidebar)
     QString buttonStyle = QString(
-        "background-color: %1; "
-        "color: %2; "
-        "padding: 6px 8px;"
-        "text-align: left;"
-        "border-radius: 6px;"
-        "border: 1px solid #cfcfcf;"
+        "background-color: %1; color: %2; font-weight: bold; "
+        "padding: 6px 8px; text-align: left; border-radius: 6px; border: 1px solid #cfcfcf;"
     ).arg(sectionHeader.name()).arg(text.name());
 
-    // Main Navigation Buttons (Dashboard, CPU, Memory, Disk, Network)
-    QString navButtonStyle = QString(
-        "background-color: %1; "
-        "color: %2; "
-        "padding: 6px 8px;"
-        "text-align: left;"
-        "border-radius: 6px;"
-        "border: 1px solid #cfcfcf;"
-    ).arg(sectionHeader.name()).arg(text.name());
+    // Main Navigation
+    if (ui->dashboardButton) ui->dashboardButton->setStyleSheet(buttonStyle);
+    if (ui->cpuButton) ui->cpuButton->setStyleSheet(buttonStyle);
+    if (ui->memoryButton) ui->memoryButton->setStyleSheet(buttonStyle);
+    if (ui->diskButton) ui->diskButton->setStyleSheet(buttonStyle);
+    if (ui->networkButton) ui->networkButton->setStyleSheet(buttonStyle);
 
-    if (ui->dashboardButton) ui->dashboardButton->setStyleSheet(navButtonStyle);
-    if (ui->cpuButton) ui->cpuButton->setStyleSheet(navButtonStyle);
-    if (ui->memoryButton) ui->memoryButton->setStyleSheet(navButtonStyle);
-    if (ui->diskButton) ui->diskButton->setStyleSheet(navButtonStyle);
-    if (ui->networkButton) ui->networkButton->setStyleSheet(navButtonStyle);
-
-    // Toggle Buttons (CPU Usage, Memory Usage, etc.)
+    // Toggle Buttons
     if (ui->cpuUsageToggleButton) ui->cpuUsageToggleButton->setStyleSheet(buttonStyle);
     if (ui->cpuPerCoreToggleButton) ui->cpuPerCoreToggleButton->setStyleSheet(buttonStyle);
     if (ui->memoryUsageToggleButton) ui->memoryUsageToggleButton->setStyleSheet(buttonStyle);
@@ -1725,19 +1752,14 @@ void MainWindow::applyTheme()
     if (ui->networkTrafficToggleButton) ui->networkTrafficToggleButton->setStyleSheet(buttonStyle);
     if (ui->networkInterfacesToggleButton) ui->networkInterfacesToggleButton->setStyleSheet(buttonStyle);
 
-    // Sidebar special buttons
+    // Sidebar Buttons
     if (ui->sidebarToggleButton) ui->sidebarToggleButton->setStyleSheet(buttonStyle);
     if (ui->settingsButton) ui->settingsButton->setStyleSheet(buttonStyle);
 
-    // Process Table Header
+    // Table Header
     QString headerStyle = QString(
-        "QHeaderView::section {"
-        " background-color: %1;"
-        " color: %2;"
-        " font-weight: bold;"
-        " border: 1px solid #d0d0d0;"
-        " padding: 4px;"
-        "}"
+        "QHeaderView::section { background-color: %1; color: %2; font-weight: bold; "
+        "border: 1px solid #d0d0d0; padding: 4px; }"
     ).arg(altRow.name()).arg(text.name());
 
     if (ui->processTable && ui->processTable->horizontalHeader())
@@ -1785,7 +1807,7 @@ void MainWindow::showSettingsDialog()
                 currentTheme.value(key),
                 this,
                 "Choose " + label,
-                QColorDialog::ShowAlphaChannel | QColorDialog::DontUseNativeDialog   // ← Key change
+                QColorDialog::ShowAlphaChannel | QColorDialog::DontUseNativeDialog
             );
 
             if (chosen.isValid()) {
