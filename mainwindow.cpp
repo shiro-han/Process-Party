@@ -24,6 +24,7 @@
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFontComboBox>
 
 #include <QPixmap>
 #include <QIcon>
@@ -1780,7 +1781,7 @@ void MainWindow::showSettingsDialog()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("Customize Theme");
-    dialog.resize(580, 520);
+    dialog.resize(620, 620);
     dialog.setModal(true);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
@@ -1788,6 +1789,7 @@ void MainWindow::showSettingsDialog()
 
     mainLayout->addWidget(new QLabel("<h2>Customize Theme</h2>"));
 
+    // === Color Options ===
     auto addColorButton = [&](const QString& label, const QString& key, QColor defaultColor) {
         QPushButton *btn = new QPushButton(label);
         btn->setMinimumHeight(52);
@@ -1803,6 +1805,7 @@ void MainWindow::showSettingsDialog()
          .arg(current.lightness() > 130 ? "black" : "white"));
 
         connect(btn, &QPushButton::clicked, this, [this, btn, key, label]() {
+            // This forces the FULL color wheel (rainbow HSV picker)
             QColor chosen = QColorDialog::getColor(
                 currentTheme.value(key),
                 this,
@@ -1826,12 +1829,25 @@ void MainWindow::showSettingsDialog()
         mainLayout->addWidget(btn);
     };
 
-    addColorButton("Accent Color",        "accent",       QColor("#3b82f6"));
-    addColorButton("Background",          "background",   QColor("#f8fafc"));
-    addColorButton("Panels / Cards",      "panel",        QColor("#ffffff"));
-    addColorButton("Section Headers",     "sectionHeader",QColor("#f1f5f9"));
-    addColorButton("Text Color",          "text",         QColor("#1e2937"));
-    addColorButton("Table Alternate Row", "tableAlt",     QColor("#f1f5f9"));
+    addColorButton("Background", "background", QColor("#f8fafc"));
+    addColorButton("Section Headers", "sectionHeader", QColor("#f1f5f9"));
+    addColorButton("Accent Color", "accent", QColor("#3b82f6"));
+    addColorButton("Text Color", "text", QColor("#1e2937"));
+    addColorButton("Table Primary", "panel", QColor("#ffffff"));
+    addColorButton("Table Alternate", "tableAlt", QColor("#f1f5f9"));
+
+    // === Font Selection ===
+    mainLayout->addSpacing(20);
+    mainLayout->addWidget(new QLabel("<b>Font Settings</b>"));
+
+    QHBoxLayout *fontLayout = new QHBoxLayout();
+    QLabel *fontLabel = new QLabel("Application Font:");
+    QFontComboBox *fontCombo = new QFontComboBox();
+    fontCombo->setCurrentFont(qApp->font());
+
+    fontLayout->addWidget(fontLabel);
+    fontLayout->addWidget(fontCombo, 1);
+    mainLayout->addLayout(fontLayout);
 
     // Presets
     mainLayout->addSpacing(20);
@@ -1839,41 +1855,50 @@ void MainWindow::showSettingsDialog()
 
     QHBoxLayout *presetLayout = new QHBoxLayout();
     QPushButton *lightBtn = new QPushButton("Light Mode");
-    QPushButton *darkBtn = new QPushButton("Dark Mode");
+    QPushButton *darkBtn  = new QPushButton("Dark Mode");
     lightBtn->setMinimumHeight(45);
     darkBtn->setMinimumHeight(45);
+
     presetLayout->addWidget(lightBtn);
     presetLayout->addWidget(darkBtn);
     mainLayout->addLayout(presetLayout);
 
-    // Preset actions
-    connect(lightBtn, &QPushButton::clicked, this, [&, &dialog = dialog]() {
-        currentTheme["accent"] = QColor("#3b82f6");
-        currentTheme["background"] = QColor("#f8fafc");
-        currentTheme["panel"] = QColor("#ffffff");
-        currentTheme["sectionHeader"] = QColor("#f1f5f9");
-        currentTheme["text"] = QColor("#1e2937");
-        currentTheme["tableAlt"] = QColor("#f1f5f9");
-        dialog.accept();
-    });
-
-    connect(darkBtn, &QPushButton::clicked, this, [&, &dialog = dialog]() {
-        currentTheme["accent"] = QColor("#60a5fa");
-        currentTheme["background"] = QColor("#1a1a1a");
-        currentTheme["panel"] = QColor("#252525");
-        currentTheme["sectionHeader"] = QColor("#333333");
-        currentTheme["text"] = QColor("#e0e0e0");
-        currentTheme["tableAlt"] = QColor("#2a2a2a");
-        dialog.accept();
-    });
-
+    // OK / Cancel
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     mainLayout->addWidget(buttonBox);
+
+    // CONNECTIONS
 
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
+    // Light Mode Preset
+    connect(lightBtn, &QPushButton::clicked, this, [&]() {
+        currentTheme["accent"]        = QColor("#3b82f6");
+        currentTheme["background"]    = QColor("#f8fafc");
+        currentTheme["panel"]         = QColor("#ffffff");
+        currentTheme["sectionHeader"] = QColor("#f1f5f9");
+        currentTheme["text"]          = QColor("#1e2937");
+        currentTheme["tableAlt"]      = QColor("#f1f5f9");
+        dialog.accept();
+    });
+
+    // Dark Mode Preset
+    connect(darkBtn, &QPushButton::clicked, this, [&]() {
+        currentTheme["accent"]        = QColor("#60a5fa");
+        currentTheme["background"]    = QColor("#1a1a1a");
+        currentTheme["panel"]         = QColor("#252525");
+        currentTheme["sectionHeader"] = QColor("#333333");
+        currentTheme["text"]          = QColor("#e0e0e0");
+        currentTheme["tableAlt"]      = QColor("#2a2a2a");
+        dialog.accept();
+    });
+
     if (dialog.exec() == QDialog::Accepted) {
+        // Apply selected font
+        QFont newFont = fontCombo->currentFont();
+        qApp->setFont(newFont);
+
         applyTheme();
         saveThemeSettings();
     }
