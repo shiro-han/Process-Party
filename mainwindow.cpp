@@ -85,10 +85,7 @@ MainWindow::MainWindow(QWidget *parent)
     networkInterfacesExpanded(true)
 {
     ui->setupUi(this);
-
-    ui->setupUi(this);
-
-    ui->setupUi(this);
+    hide();
 
     // ICON
     QIcon appIcon(":/capyy_2.png");
@@ -106,10 +103,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->sidebarTitleLabel->setPixmap(
         logo.scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation)
     );
-
-    loadThemeSettings();
-    applyTheme();
-    connect(ui->settingsButton, &QPushButton::clicked, this, &MainWindow::showSettingsDialog);
 
     ui->scrollContentLayout->setAlignment(Qt::AlignTop);
     ui->dashboardPageLayout->setAlignment(Qt::AlignTop);
@@ -179,6 +172,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->networkInterfacesToggleButton, &QPushButton::clicked,
             this, &MainWindow::toggleNetworkInterfacesSection);
 
+    connect(ui->settingsButton, &QPushButton::clicked, this, &MainWindow::showSettingsDialog);
+
     // Move worker onto background thread
     statsWorker->moveToThread(workerThread);
 
@@ -197,6 +192,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Kick off first sample immediately without waiting for first tick
     emit requestStats();
+
+    QTimer::singleShot(0, this, [this]() {
+        loadThemeSettings();
+        applyTheme();
+        show();
+    });
 }
 
 MainWindow::~MainWindow()
@@ -995,44 +996,41 @@ void MainWindow::updateCurrentPageHeight()
 
 void MainWindow::setNavButtonActive(QPushButton *button, bool active)
 {
-    QColor accent       = currentTheme.value("accent",       QColor("#3b82f6"));
-    QColor sectionHeader= currentTheme.value("sectionHeader", QColor("#f1f5f9"));
-    QColor borderColor  = currentTheme.value("border",       QColor("#64748b"));
-    QColor textColor    = currentTheme.value("text",         QColor("#1e2937"));
+    QColor accent = currentTheme.value("accent", QColor("#3b82f6"));
+    QColor text   = currentTheme.value("text",   QColor("#1e2937"));
+    QColor bg     = currentTheme.value("sectionHeader", QColor("#f1f5f9"));
 
     if (active)
     {
-        // Active button
         button->setStyleSheet(QString(
             "QPushButton {"
-            " font-weight: bold;"
-            " background-color: %1;"
-            " color: %2;"
-            " border: 2px solid %3;"
-            " border-radius: 6px;"
-            " padding: 6px 8px;"
-            " text-align: left;"
+            "  font-weight: bold;"
+            "  background-color: %1;"
+            "  border: 2px solid %2;"
+            "  border-radius: 6px;"
+            "  padding: 6px 8px;"
+            "  text-align: left;"
+            "  color: %3;"
             "}"
-        ).arg(accent.name())
-         .arg(textColor.name())
-         .arg(borderColor.name()));
+        ).arg(accent.lighter(160).name())
+         .arg(accent.name())
+         .arg(text.name()));
     }
     else
     {
-        // Inactive buttons: Section Header background + Border Color outline
         button->setStyleSheet(QString(
             "QPushButton {"
-            " font-weight: normal;"
-            " background-color: %1;"
-            " color: %2;"
-            " border: 2px solid %3;"
-            " border-radius: 6px;"
-            " padding: 6px 8px;"
-            " text-align: left;"
+            "  font-weight: normal;"
+            "  background-color: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 6px;"
+            "  padding: 6px 8px;"
+            "  text-align: left;"
+            "  color: %3;"
             "}"
-        ).arg(sectionHeader.name())
-         .arg(textColor.name())
-         .arg(borderColor.name()));
+        ).arg(bg.name())
+         .arg(accent.darker(120).name())
+         .arg(text.name()));
     }
 }
 
@@ -1802,14 +1800,15 @@ void MainWindow::applyTheme()
 
     if (ui->processTable)
         ui->processTable->setStyleSheet(ui->processTable->styleSheet() + extraStyle);
+
 }
 
 void MainWindow::showSettingsDialog()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("Customize Theme");
-    dialog.resize(620, 620);
-    dialog.setModal(true);
+    dialog.resize(620, 680);
+    dialog.setWindowModality(Qt::WindowModal);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
     mainLayout->setSpacing(12);
@@ -1832,16 +1831,10 @@ void MainWindow::showSettingsDialog()
          .arg(current.lightness() > 130 ? "black" : "white"));
 
         connect(btn, &QPushButton::clicked, this, [this, btn, key, label]() {
-            QColorDialog dlg(this);
+            QColorDialog dlg(currentTheme.value(key), this);
             dlg.setWindowTitle("Choose " + label);
-            dlg.setCurrentColor(currentTheme.value(key));
-            dlg.setOption(QColorDialog::ShowAlphaChannel, false);
-
-            // Full color wheel
             dlg.setOption(QColorDialog::DontUseNativeDialog, true);
-            dlg.setModal(true);
-            dlg.setWindowModality(Qt::ApplicationModal);
-
+            dlg.setWindowModality(Qt::WindowModal);
             if (dlg.exec() == QDialog::Accepted) {
                 QColor chosen = dlg.currentColor();
                 if (chosen.isValid()) {
@@ -1861,104 +1854,137 @@ void MainWindow::showSettingsDialog()
         mainLayout->addWidget(btn);
     };
 
-    addColorButton("Background", "background", QColor("#f8fafc"));
-    addColorButton("Section Headers", "sectionHeader", QColor("#f1f5f9"));
-    addColorButton("Accent Color", "accent", QColor("#3b82f6"));
-    addColorButton("Text Color", "text", QColor("#1e2937"));
-    addColorButton("Table Primary", "panel", QColor("#ffffff"));
-    addColorButton("Table Alternate", "tableAlt", QColor("#f1f5f9"));
-    addColorButton("Border Color", "border", QColor("#64748b"));
+    addColorButton("Background",       "background",    QColor("#f8fafc"));
+    addColorButton("Section Headers",  "sectionHeader", QColor("#f1f5f9"));
+    addColorButton("Accent Color",     "accent",        QColor("#3b82f6"));
+    addColorButton("Text Color",       "text",          QColor("#1e2937"));
+    addColorButton("Table Primary",    "panel",         QColor("#ffffff"));
+    addColorButton("Table Alternate",  "tableAlt",      QColor("#f1f5f9"));
+    addColorButton("Border Color",     "border",        QColor("#64748b"));
 
     // === Font Selection ===
-    mainLayout->addSpacing(20);
+    mainLayout->addSpacing(10);
     mainLayout->addWidget(new QLabel("<b>Font Settings</b>"));
 
     QHBoxLayout *fontLayout = new QHBoxLayout();
     QLabel *fontLabel = new QLabel("Application Font:");
     QFontComboBox *fontCombo = new QFontComboBox();
-
     fontCombo->setCurrentFont(qApp->font());
     fontCombo->setMinimumHeight(32);
     fontCombo->setFocusPolicy(Qt::StrongFocus);
-
     fontLayout->addWidget(fontLabel);
     fontLayout->addWidget(fontCombo, 1);
     mainLayout->addLayout(fontLayout);
 
-    // === Quick Presets ===
-    mainLayout->addSpacing(20);
+    // === Presets ===
+    mainLayout->addSpacing(10);
     mainLayout->addWidget(new QLabel("<b>Quick Presets</b>"));
 
+    // Define all presets
+    struct Preset {
+        QString name;
+        QString background;
+        QString sectionHeader;
+        QString accent;
+        QString text;
+        QString panel;
+        QString tableAlt;
+        QString border;
+    };
+
+    QList<Preset> darkPresets = {
+        { "Default",    "#111111", "#222222", "#9d65d6", "#bebebe", "#262626", "#2d2d2d", "#3b3b3b" },
+        { "Pure Black", "#000000", "#212121", "#1271ff", "#c4c4c4", "#111111", "#222222", "#6d6d6d" },
+        { "Mars",       "#241e1d", "#342a26", "#ff5b24", "#c4bbbb", "#39302c", "#312926", "#1a1616" },
+        { "Slate",      "#343434", "#3e3e3e", "#a0b3cf", "#c4c4c4", "#3e3e3e", "#454545", "#787878" },
+        { "Royal",      "#000c15", "#011627", "#b07522", "#fffbdc", "#011321", "#01101c", "#011c2d" },
+        { "Nebula",     "#11081a", "#1a1125", "#8d003f", "#bfb1a6", "#11081a", "#1a1125", "#1a1125" },
+    };
+
+    QList<Preset> lightPresets = {
+        { "Default",        "#ffffff", "#f5f5f5", "#9d65d6", "#2b2b2b", "#ffffff", "#f5f5f5", "#c1c1c1" },
+        { "Cherry Blossom", "#fff5f5", "#f4b4cc", "#de8bb1", "#8b546b", "#fceaf1", "#f8d7e7", "#d681a2" },
+        { "Orange Slices",  "#fffbdc", "#ffd3a5", "#f57b35", "#943100", "#ffd3a5", "#ffaa6e", "#f39b69" },
+        { "Matcha",         "#f0f0d8", "#d6eb98", "#809a4d", "#604848", "#dcf19c", "#c4d872", "#87a251" },
+        { "Coastal Sands",  "#edddc4", "#e3cda6", "#77b0a4", "#554040", "#edddc4", "#e3cda6", "#b9a587" },
+        { "Frost",          "#f3fcff", "#e9f2f5", "#a3b3bf", "#71767e", "#f3fcff", "#e9f2f5", "#b1b9c5" },
+    };
+
+    auto applyPreset = [&](const Preset &p, QDialog *dlg) {
+        currentTheme["background"]    = QColor(p.background);
+        currentTheme["sectionHeader"] = QColor(p.sectionHeader);
+        currentTheme["accent"]        = QColor(p.accent);
+        currentTheme["text"]          = QColor(p.text);
+        currentTheme["panel"]         = QColor(p.panel);
+        currentTheme["tableAlt"]      = QColor(p.tableAlt);
+        currentTheme["border"]        = QColor(p.border);
+        dlg->accept();
+    };
+
+    // Helper to build a preset dropdown button
+    auto makePresetMenu = [&](const QString &label,
+                               const QList<Preset> &presets,
+                               const QString &btnBg,
+                               const QString &btnText,
+                               const QString &btnBorder) -> QPushButton*
+    {
+        QPushButton *btn = new QPushButton(label + "  ▾");
+        btn->setMinimumHeight(44);
+        btn->setStyleSheet(QString(
+            "QPushButton {"
+            "  background-color: %1;"
+            "  color: %2;"
+            "  font-weight: bold;"
+            "  border: 2px solid %3;"
+            "  border-radius: 6px;"
+            "}"
+            "QPushButton:hover { opacity: 0.85; }"
+        ).arg(btnBg).arg(btnText).arg(btnBorder));
+
+        connect(btn, &QPushButton::clicked, this, [this, btn, presets, &dialog, applyPreset]() {
+            QMenu menu(btn);
+            for (const Preset &p : presets)
+            {
+                QPixmap swatch(14, 14);
+                swatch.fill(QColor(p.accent));
+                QAction *action = menu.addAction(QIcon(swatch), p.name);
+                connect(action, &QAction::triggered, this, [this, p, &dialog, applyPreset]() {
+                    applyPreset(p, &dialog);
+                });
+            }
+            menu.exec(btn->mapToGlobal(btn->rect().topLeft()));
+        });
+
+        return btn;
+    };
+
     QHBoxLayout *presetLayout = new QHBoxLayout();
-    QPushButton *lightBtn = new QPushButton("Light Mode");
-    QPushButton *darkBtn  = new QPushButton("Dark Mode");
 
-    lightBtn->setMinimumHeight(48);
-    darkBtn->setMinimumHeight(48);
-
-    // Special styling so presets are always readable
-    lightBtn->setStyleSheet(
-        "QPushButton {"
-        " background-color: #f0f0f0;"
-        " color: #1e2937;"
-        " font-weight: bold;"
-        " border: 2px solid #d0d0d0;"
-        " border-radius: 6px;"
-        "}"
-        "QPushButton:hover { background-color: #e0e0e0; }"
+    QPushButton *darkBtn = makePresetMenu(
+        "Dark Themes", darkPresets,
+        "#2a2a2a", "#e0e0e0", "#555555"
+    );
+    QPushButton *lightBtn = makePresetMenu(
+        "Light Themes", lightPresets,
+        "#f0f0f0", "#1e2937", "#d0d0d0"
     );
 
-    darkBtn->setStyleSheet(
-        "QPushButton {"
-        " background-color: #2a2a2a;"
-        " color: #e0e0e0;"
-        " font-weight: bold;"
-        " border: 2px solid #555555;"
-        " border-radius: 6px;"
-        "}"
-        "QPushButton:hover { background-color: #333333; }"
-    );
-
-    presetLayout->addWidget(lightBtn);
     presetLayout->addWidget(darkBtn);
+    presetLayout->addWidget(lightBtn);
     mainLayout->addLayout(presetLayout);
 
-    // OK / Cancel
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    // === OK / Cancel ===
+    QDialogButtonBox *buttonBox = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel
+    );
     mainLayout->addWidget(buttonBox);
-
-    // CONNECTIONS
 
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
-    // Light Mode Preset
-    connect(lightBtn, &QPushButton::clicked, this, [&]() {
-        currentTheme["accent"]        = QColor("#3b82f6");
-        currentTheme["background"]    = QColor("#f8fafc");
-        currentTheme["panel"]         = QColor("#ffffff");
-        currentTheme["sectionHeader"] = QColor("#f1f5f9");
-        currentTheme["text"]          = QColor("#1e2937");
-        currentTheme["tableAlt"]      = QColor("#f1f5f9");
-        dialog.accept();
-    });
-
-    // Dark Mode Preset
-    connect(darkBtn, &QPushButton::clicked, this, [&]() {
-        currentTheme["accent"]        = QColor("#60a5fa");
-        currentTheme["background"]    = QColor("#1a1a1a");
-        currentTheme["panel"]         = QColor("#252525");
-        currentTheme["sectionHeader"] = QColor("#333333");
-        currentTheme["text"]          = QColor("#e0e0e0");
-        currentTheme["tableAlt"]      = QColor("#2a2a2a");
-        dialog.accept();
-    });
-
     if (dialog.exec() == QDialog::Accepted) {
-        // Apply selected font
         QFont newFont = fontCombo->currentFont();
         qApp->setFont(newFont);
-
         applyTheme();
         saveThemeSettings();
     }
