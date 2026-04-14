@@ -104,6 +104,13 @@ MainWindow::MainWindow(QWidget *parent)
         logo.scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation)
     );
 
+    loadThemeSettings();
+    applyTheme();
+
+    qDebug() << "Theme loaded - SectionHeader:" << currentTheme.value("sectionHeader").name();
+    qDebug() << "Theme loaded - Accent:" << currentTheme.value("accent").name();
+
+
     ui->scrollContentLayout->setAlignment(Qt::AlignTop);
     ui->dashboardPageLayout->setAlignment(Qt::AlignTop);
     ui->cpuPageLayout->setAlignment(Qt::AlignTop);
@@ -128,16 +135,17 @@ MainWindow::MainWindow(QWidget *parent)
 
     visibleColumns = defaultColumnsForPage(currentPage);
     ui->mainVerticalSplitter->setHandleWidth(10);
+    ui->sidebarFrame->updateGeometry();
+    ui->centralwidget->updateGeometry();
+
+
     setupGraphs();
     setupProcessTable();
     updatePageHeader();
     updateSidebarAppearance();
-    ui->sidebarFrame->updateGeometry();
-    ui->centralwidget->updateGeometry();
+    updateSidebarHighlight();
 
     connect(ui->processSearchBar, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
-
-    updateSidebarHighlight();
     applyDefaultSplitterSizes();
 
     connect(ui->sidebarToggleButton, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
@@ -193,10 +201,29 @@ MainWindow::MainWindow(QWidget *parent)
     // Kick off first sample immediately without waiting for first tick
     emit requestStats();
 
-    QTimer::singleShot(0, this, [this]() {
-        loadThemeSettings();
-        applyTheme();
-        show();
+    // Force fix process table header
+    QTimer::singleShot(150, this, [this]() {
+        QColor sectionHeader = currentTheme.value("sectionHeader");
+        QColor textColor     = currentTheme.value("text");
+        QColor borderColor   = currentTheme.value("border");
+
+        QString headerStyle = QString(
+            "QHeaderView::section { "
+            "background-color: %1; "
+            "color: %2; "
+            "font-weight: bold; "
+            "border: 1px solid %3; "
+            "padding: 4px 6px; "
+            "}"
+        ).arg(sectionHeader.name())
+         .arg(textColor.name())
+         .arg(borderColor.name());
+
+        if (ui->processTable && ui->processTable->horizontalHeader())
+        {
+            ui->processTable->horizontalHeader()->setStyleSheet(headerStyle);
+            ui->processTable->horizontalHeader()->repaint();   // Force redraw
+        }
     });
 }
 
@@ -1041,38 +1068,26 @@ void MainWindow::updateSidebarHighlight()
     setNavButtonActive(ui->memoryButton, currentPage == MonitorPage::Memory);
     setNavButtonActive(ui->diskButton, currentPage == MonitorPage::Disk);
     setNavButtonActive(ui->networkButton, currentPage == MonitorPage::Network);
+
+    ui->sidebarFrame->update();
 }
 
 void MainWindow::updateSidebarAppearance()
 {
-    if (sidebarExpanded)
-    {
-        ui->sidebarFrame->setMinimumWidth(180);
-        ui->sidebarFrame->setMaximumWidth(220);
+    bool expanded = sidebarExpanded;
 
-        ui->sidebarTitleLabel->show();
-        ui->sidebarToggleButton->setText("Collapse");
+    ui->sidebarFrame->setMinimumWidth(expanded ? 180 : 90);
+    ui->sidebarFrame->setMaximumWidth(expanded ? 220 : 90);
+    ui->sidebarTitleLabel->setVisible(expanded);
 
-        ui->dashboardButton->setText("Dashboard");
-        ui->cpuButton->setText("CPU");
-        ui->memoryButton->setText("Memory");
-        ui->diskButton->setText("Disk");
-        ui->networkButton->setText("Network");
-    }
-    else
-    {
-        ui->sidebarFrame->setMinimumWidth(90);
-        ui->sidebarFrame->setMaximumWidth(90);
+    ui->sidebarToggleButton->setText(expanded ? "Collapse" : ">>");
 
-        ui->sidebarTitleLabel->hide();
-        ui->sidebarToggleButton->setText(">>");
-
-        ui->dashboardButton->setText("Dash");
-        ui->cpuButton->setText("CPU");
-        ui->memoryButton->setText("Mem");
-        ui->diskButton->setText("Disk");
-        ui->networkButton->setText("Net");
-    }
+    ui->dashboardButton->setText(expanded ? "Dashboard" : "Dash");
+    ui->cpuButton->setText(expanded ? "CPU" : "CPU");
+    ui->memoryButton->setText(expanded ? "Memory" : "Mem");
+    ui->diskButton->setText(expanded ? "Disk" : "Disk");
+    ui->networkButton->setText(expanded ? "Network" : "Net");
+    ui->settingsButton->setText(expanded ? "Settings" : "     ⚙");
 
     updateSidebarHighlight();
 }
@@ -1657,11 +1672,14 @@ void MainWindow::sendSignalToSelectedProcess(int signal)
 void MainWindow::loadThemeSettings()
 {
     QSettings settings("ProcessParty", "Theme");
-    currentTheme["accent"]     = QColor(settings.value("accent",     "#3b82f6").toString());
-    currentTheme["background"] = QColor(settings.value("background", "#f8fafc").toString());
-    currentTheme["panel"]      = QColor(settings.value("panel",      "#ffffff").toString());
-    currentTheme["text"]       = QColor(settings.value("text",       "#1e2937").toString());
-    currentTheme["tableAlt"]   = QColor(settings.value("tableAlt",   "#f1f5f9").toString());
+
+    currentTheme["accent"]        = QColor(settings.value("accent",        "#3b82f6").toString());
+    currentTheme["background"]    = QColor(settings.value("background",    "#f8fafc").toString());
+    currentTheme["panel"]         = QColor(settings.value("panel",         "#ffffff").toString());
+    currentTheme["sectionHeader"] = QColor(settings.value("sectionHeader", "#f1f5f9").toString());  // ← Missing
+    currentTheme["text"]          = QColor(settings.value("text",          "#1e2937").toString());
+    currentTheme["tableAlt"]      = QColor(settings.value("tableAlt",      "#f1f5f9").toString());
+    currentTheme["border"]        = QColor(settings.value("border",        "#64748b").toString());   // ← Missing
 }
 
 void MainWindow::saveThemeSettings()
@@ -1759,9 +1777,16 @@ void MainWindow::applyTheme()
 
     // Table Header
     QString headerStyle = QString(
-        "QHeaderView::section { background-color: %1; color: %2; font-weight: bold; "
-        "border: 1px solid #d0d0d0; padding: 4px; }"
-    ).arg(altRow.name()).arg(text.name());
+        "QHeaderView::section { "
+        "background-color: %1; "
+        "color: %2; "
+        "font-weight: bold; "
+        "border: 1px solid %3; "
+        "padding: 4px 6px; "
+        "}"
+    ).arg(sectionHeader.name())
+     .arg(text.name())
+     .arg(borderColor.name());
 
     if (ui->processTable && ui->processTable->horizontalHeader())
         ui->processTable->horizontalHeader()->setStyleSheet(headerStyle);
@@ -1773,7 +1798,7 @@ void MainWindow::applyTheme()
      .arg(borderColor.lighter(180).name())
      .arg(accent.name());
 
-    if (ui->processTable)
+    if (ui->processTable && ui->processTable->horizontalHeader())
         ui->processTable->setStyleSheet(tableStyle);
 
     QString graphBorderStyle = QString(
@@ -1919,6 +1944,9 @@ void MainWindow::showSettingsDialog()
         currentTheme["tableAlt"]      = QColor(p.tableAlt);
         currentTheme["border"]        = QColor(p.border);
         dlg->accept();
+        QTimer::singleShot(0, this, [this]() {
+                    updateSidebarHighlight();
+                });
     };
 
     // Helper to build a preset dropdown button
@@ -1987,5 +2015,6 @@ void MainWindow::showSettingsDialog()
         qApp->setFont(newFont);
         applyTheme();
         saveThemeSettings();
+        updateSidebarHighlight();
     }
 }
