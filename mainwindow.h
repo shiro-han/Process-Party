@@ -121,6 +121,9 @@ private:
 
     QMap<QString, QColor> currentTheme;
 
+    QString m_savedFontFamily;
+    int m_savedFontSize;
+    void applySavedFont();
     void showSettingsDialog();
     void applyTheme();
     void loadThemeSettings();
