@@ -65,7 +65,8 @@ bool ProcessTable::readProcStat(int pid,
                                 long long &outStime,
                                 long long &outThreads,
                                 long long &outPriority,
-                                long long &outNice)
+                                long long &outNice,
+                                long long &outStartTimeTicks)
 {
     std::ifstream in("/proc/" + std::to_string(pid) + "/stat");
     if (!in)
@@ -107,8 +108,9 @@ bool ProcessTable::readProcStat(int pid,
     long long priority = 0;
     long long niceValue = 0;
     long long threads = 0;
+    long long startTimeTicks = 0;
 
-    for (int field = 2; field <= 18; ++field)
+    for (int field = 2; field <= 20; ++field)
     {
         if (!(iss >> token))
             return false;
@@ -125,11 +127,15 @@ bool ProcessTable::readProcStat(int pid,
                 niceValue = std::stoll(token);
             else if (field == 18)
                 threads = std::stoll(token);
+            else if (field == 20)
+                startTimeTicks = std::stoll(token);
         }
         catch (...)
         {
             if (field == 18)
                 threads = 0;
+            else if (field == 20)
+                startTimeTicks = 0;
             else
                 return false;
         }
@@ -140,6 +146,7 @@ bool ProcessTable::readProcStat(int pid,
     outThreads = threads;
     outPriority = priority;
     outNice = niceValue;
+    outStartTimeTicks = startTimeTicks;
     return true;
 }
 
@@ -238,12 +245,14 @@ std::unordered_map<int, ProcSnap> ProcessTable::takeSnapshot()
         long long threads = 0;
         long long priority = 0;
         long long niceValue = 0;
+        long long startTimeTicks = 0;
 
-        if (!readProcStat(pid, name, state, utime, stime, threads, priority, niceValue))
+        if (!readProcStat(pid, name, state, utime, stime, threads, priority, niceValue, startTimeTicks))
             continue;
 
         ProcSnap snap;
         snap.cpuTicks = utime + stime;
+        snap.startTimeTicks = startTimeTicks;
 
         unsigned long long r = 0;
         unsigned long long w = 0;
@@ -268,11 +277,13 @@ std::optional<ProcInfoNow> ProcessTable::readProcInfoNow(int pid)
     long long threads = 0;
     long long priority = 0;
     long long niceValue = 0;
+    long long startTimeTicks = 0;
 
-    if (!readProcStat(pid, info.name, info.state, utime, stime, threads, priority, niceValue))
+    if (!readProcStat(pid, info.name, info.state, utime, stime, threads, priority, niceValue, startTimeTicks))
         return std::nullopt;
 
     info.cpuTicks = utime + stime;
+    info.startTimeTicks = startTimeTicks;
     info.threads = threads;
     info.priority = priority;
     info.niceValue = niceValue;
@@ -355,6 +366,7 @@ std::vector<ProcessRow> ProcessTable::readProcesses()
 
         ProcessRow row;
         row.pid = pid;
+        row.startTimeTicks = infoNow.startTimeTicks;
         row.name = infoNow.name;
         row.state = infoNow.state;
 

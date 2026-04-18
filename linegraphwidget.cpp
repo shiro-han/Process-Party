@@ -377,11 +377,11 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
     m_legendItems.clear();
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.fillRect(rect(), palette().window());
 
-    // Define outer rect for layout calculations
     QRectF outer = rect().adjusted(16, 16, -16, -24);
 
     bool hasHeader = m_showTitle || m_showSummaryText;
@@ -418,7 +418,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     if (maxValue <= minValue)
         maxValue = minValue + 1.0;
 
-    // Grid lines
     painter.setPen(QPen(palette().midlight().color(), 1, Qt::DashLine));
     const int gridLines = 4;
     for (int i = 0; i <= gridLines; ++i)
@@ -433,23 +432,6 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(QPointF(x, plotRect.top()), QPointF(x, plotRect.bottom()));
     }
 
-    bool hasData = !m_samples.empty();
-    for (const Series &series : m_series)
-    {
-        if (!series.visible || series.samples.empty())
-            continue;
-        hasData = true;
-        break;
-    }
-
-    if (!hasData)
-    {
-        painter.setPen(palette().mid().color());
-        painter.drawText(plotRect, Qt::AlignCenter, "No data");
-        return;
-    }
-
-    // Legend and line drawing
     if (!m_series.empty())
     {
         const std::vector<QColor> lineColors = {
@@ -479,6 +461,23 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
             legendX += 90;
         }
 
+        bool hasData = false;
+        for (const Series &series : m_series)
+        {
+            if (!series.visible || series.samples.empty())
+                continue;
+
+            hasData = true;
+            break;
+        }
+
+        if (!hasData)
+        {
+            painter.setPen(palette().mid().color());
+            painter.drawText(plotRect, Qt::AlignCenter, "No data");
+            return;
+        }
+
         for (int s = 0; s < static_cast<int>(m_series.size()); ++s)
         {
             const Series &series = m_series[s];
@@ -505,6 +504,7 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
                     path.lineTo(pt);
                 }
             }
+
             painter.setPen(QPen(color, 2));
             painter.setBrush(Qt::NoBrush);
             painter.drawPath(path);
@@ -518,7 +518,14 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     }
     else
     {
-        // Single series fallback
+        bool hasData = !m_samples.empty();
+        if (!hasData)
+        {
+            painter.setPen(palette().mid().color());
+            painter.drawText(plotRect, Qt::AlignCenter, "No data");
+            return;
+        }
+
         QPainterPath path;
         bool started = false;
         int sampleSlots = std::max(2, m_maxSamples);
@@ -538,6 +545,7 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
                 path.lineTo(pt);
             }
         }
+
         QPen linePen(palette().highlight().color(), 2);
         painter.setPen(linePen);
         painter.setBrush(Qt::NoBrush);

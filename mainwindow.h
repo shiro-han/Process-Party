@@ -10,6 +10,9 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <vector>
+#include <chrono>
+#include <utility>
+#include <string>
 
 #include "processtable.h"
 #include "systemstats.h"
@@ -28,7 +31,8 @@ enum class MonitorPage
     CPU,
     Memory,
     Disk,
-    Network
+    Network,
+    History
 };
 
 enum class ProcessColumn
@@ -57,6 +61,19 @@ enum class SortState
     Ascending
 };
 
+enum class HistoryColumn
+{
+    Name,
+    PID,
+    Samples,
+    Status,
+    AvgCpu,
+    PeakCpu,
+    AvgRssMB,
+    FirstSeen,
+    LastSeen
+};
+
 class StatsWorker : public QObject
 {
     Q_OBJECT
@@ -74,6 +91,13 @@ signals:
 
 private:
     ProcessTable processTable;
+};
+
+struct RecordingSession
+{
+    std::chrono::system_clock::time_point startedAt;
+    std::chrono::system_clock::time_point endedAt;
+    std::vector<std::pair<std::chrono::system_clock::time_point, std::vector<ProcessRow>>> history;
 };
 
 class MainWindow : public QMainWindow
@@ -101,6 +125,22 @@ private slots:
     void showMemoryPage();
     void showDiskPage();
     void showNetworkPage();
+    void showHistoryPage();
+    
+    void setupHistoryTable();
+    void populateHistoryTable();
+    void onHistorySearchTextChanged(const QString &text);
+    void onHistoryHeaderClicked(int logicalIndex);
+    
+    void onRecordForClicked();
+    void checkTimedRecordingStop();
+    void onStartRecordingClicked();
+    void onStopRecordingClicked();
+    void refreshRecordingSessionComboBox();
+    void onRecordingSessionChanged(int index);
+    void loadRecordingSettings();
+    void saveRecordingSettings();
+    void onRecordOnStartupToggled(bool checked);
 
     void toggleSidebar();
     void toggleCpuUsageSection();
@@ -143,6 +183,14 @@ private:
 
     std::vector<ProcessRow> applySorting(const std::vector<ProcessRow> &rows) const;
 
+    void exportToCSV(const std::string& filename);
+    void exportSelectedHistoryToCSV(const std::string& filename);
+    
+    void startRecordingSession();
+    void stopRecordingSession();
+    const RecordingSession* selectedRecordingSession() const;
+    RecordingSession* selectedRecordingSession();
+
     std::vector<QProgressBar *> interfaceTrafficBars;
     std::vector<QLabel *> interfaceTrafficValueLabels;
     void setupInterfaceTrafficBars(const std::vector<InterfaceRate> &interfaces);
@@ -178,8 +226,19 @@ private:
     std::vector<ProcessColumn> visibleColumns;
     std::vector<ProcessRow> baseRows;
 
+    std::vector<RecordingSession> recordingSessions;
+    int currentRecordingSessionIndex = -1;
+    bool isRecording = false;
+    bool recordOnStartup = false;
+    bool timedRecordingActive = false;
+    std::chrono::steady_clock::time_point timedRecordingEndTime;
+
     ProcessColumn currentSortColumn;
     SortState currentSortState;
+    
+    HistoryColumn currentHistorySortColumn;
+    SortState currentHistorySortState;
+    void updateHistoryHeaderLabels();
 
     LineGraphWidget *dashboardCpuGraph;
     LineGraphWidget *dashboardMemoryGraph;

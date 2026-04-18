@@ -10,6 +10,7 @@
 struct ProcSnap
 {
     long long cpuTicks = 0;
+    long long startTimeTicks = 0;
     unsigned long long readBytes = 0;
     unsigned long long writeBytes = 0;
 };
@@ -17,6 +18,7 @@ struct ProcSnap
 struct ProcessRow
 {
     int pid = 0;
+    long long startTimeTicks = 0;
     std::string name;
     char state = '?';
 
@@ -42,6 +44,7 @@ struct ProcInfoNow
     std::string name;
     char state = '?';
     long long cpuTicks = 0;
+    long long startTimeTicks = 0;
     long long threads = 0;
 
     long long rssKB = 0;
@@ -74,13 +77,14 @@ private:
     static std::optional<long long> readTotalCpuTicks();
 
     static bool readProcStat(int pid,
-                             std::string &outName,
-                             char &outState,
-                             long long &outUtime,
-                             long long &outStime,
-                             long long &outThreads,
-                             long long &outPriority,
-                             long long &outNice);
+                         std::string &outName,
+                         char &outState,
+                         long long &outUtime,
+                         long long &outStime,
+                         long long &outThreads,
+                         long long &outPriority,
+                         long long &outNice,
+                         long long &outStartTimeTicks);
 
     static void readMemoryFields(int pid,
                                  long long &outVmRssKB,

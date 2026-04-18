@@ -113,6 +113,14 @@
          </property>
         </widget>
        </item>
+       
+       <item>
+        <widget class="QPushButton" name="historyButton">
+          <property name="text">
+            <string>History</string>
+          </property>
+        </widget>
+      </item>
 
        <!-- Spacer to push Settings to bottom -->
        <item>
@@ -999,54 +1007,153 @@
                  </property>
                 </widget>
                </item>
+               
                <item>
-                <widget class="QWidget" name="networkInterfacesSection">
-                 <layout class="QVBoxLayout" name="networkInterfacesSectionLayout">
-                  <item>
-                   <widget class="QScrollArea" name="networkInterfacesScrollArea">
-                    <property name="widgetResizable">
-                     <bool>true</bool>
-                    </property>
-                    <property name="horizontalScrollBarPolicy">
-                     <enum>Qt::ScrollBarAlwaysOff</enum>
-                    </property>
-                    <property name="verticalScrollBarPolicy">
-                     <enum>Qt::ScrollBarAlwaysOff</enum>
-                    </property>
-                    <widget class="QWidget" name="networkInterfacesScrollWidget">
-                     <layout class="QGridLayout" name="networkInterfacesGridLayout">
-                      <property name="horizontalSpacing">
-                       <number>0</number>
-                      </property>
-                      <property name="verticalSpacing">
-                       <number>0</number>
-                      </property>
-                      <property name="leftMargin">
-                       <number>0</number>
-                      </property>
-                      <property name="topMargin">
-                       <number>0</number>
-                      </property>
-                      <property name="rightMargin">
-                       <number>0</number>
-                      </property>
-                      <property name="bottomMargin">
-                       <number>0</number>
-                      </property>
-                     </layout>
+                 <widget class="QWidget" name="networkInterfacesSection">
+                  <layout class="QVBoxLayout" name="networkInterfacesSectionLayout">
+                   <item>
+                    <widget class="QScrollArea" name="networkInterfacesScrollArea">
+                     <property name="widgetResizable">
+                      <bool>true</bool>
+                     </property>
+                     <property name="horizontalScrollBarPolicy">
+                      <enum>Qt::ScrollBarAlwaysOff</enum>
+                     </property>
+                     <property name="verticalScrollBarPolicy">
+                      <enum>Qt::ScrollBarAlwaysOff</enum>
+                     </property>
+                     <widget class="QWidget" name="networkInterfacesScrollWidget">
+                      <layout class="QGridLayout" name="networkInterfacesGridLayout">
+                       <property name="horizontalSpacing">
+                        <number>0</number>
+                       </property>
+                       <property name="verticalSpacing">
+                        <number>0</number>
+                       </property>
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                      </layout>
+                     </widget>
                     </widget>
-                   </widget>
-                  </item>
-                 </layout>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                </layout>
                 </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
+
+                <widget class="QWidget" name="historyPage">
+                   <layout class="QVBoxLayout" name="historyPageLayout">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+
+                    <item>
+                     <widget class="QFrame" name="historySummaryFrame">
+                      <property name="frameShape">
+                       <enum>QFrame::StyledPanel</enum>
+                      </property>
+                      <layout class="QHBoxLayout" name="historySummaryLayout">
+                       <item>
+                        <widget class="QLabel" name="historySummaryLabel">
+                         <property name="text">
+                          <string>History: 0 snapshots recorded</string>
+                         </property>
+                         <property name="styleSheet">
+                          <string notr="true">font-weight: bold;</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <spacer name="historySummarySpacer">
+                         <property name="orientation">
+                          <enum>Qt::Horizontal</enum>
+                         </property>
+                         <property name="sizeHint" stdset="0">
+                          <size>
+                           <width>40</width>
+                           <height>20</height>
+                          </size>
+                         </property>
+                        </spacer>
+                       </item>
+                       
+                       <item>
+                         <widget class="QCheckBox" name="historyRecordOnStartupCheckBox">
+                          <property name="text">
+                           <string>Record on startup</string>
+                          </property>
+                         </widget>
+                       </item>
+                       
+                       <item>
+                         <widget class="QComboBox" name="historySessionComboBox"/>
+                        </item>
+                       
+                       <item>
+                        <widget class="QPushButton" name="historyStartButton">
+                         <property name="text">
+                          <string>Start Recording</string>
+                         </property>
+                        </widget>
+                       </item>
+                       
+                      <item>
+                       <widget class="QPushButton" name="historyRecordForButton">
+                        <property name="text">
+                         <string>Record For...</string>
+                        </property>
+                       </widget>
+                      </item>
+
+                      <item>
+                        <widget class="QPushButton" name="historyStopButton">
+                          <property name="text">
+                            <string>Stop Recording</string>
+                          </property>
+                        </widget>
+                      </item>
+
+                        <item>
+                         <widget class="QPushButton" name="historyExportButton">
+                          <property name="text">
+                           <string>Export History CSV</string>
+                          </property>
+                         </widget>
+                        </item>
+                      </layout>
+                     </widget>
+                    </item>
+
+                    <item>
+                     <widget class="QLineEdit" name="historySearchBar">
+                      <property name="placeholderText">
+                       <string>Search history by name or PID</string>
+                      </property>
+                     </widget>
+                    </item>
+
+                    <item>
+                     <widget class="QTableWidget" name="historyTable"/>
+                    </item>
+                   </layout>
+                  </widget>
+                </widget>
+              </item>
+            </layout>
+          </widget>
         </widget>
+      
         <widget class="QWidget" name="processPane">
          <layout class="QVBoxLayout" name="processPaneLayout">
           <property name="spacing">

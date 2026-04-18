@@ -24,12 +24,18 @@
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QSpinBox>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+
 #include <QFontComboBox>
+#include <QFileDialog>
 
 #include <QPixmap>
 #include <QIcon>
 
 #include <algorithm>
+#include <fstream>
 
 static const std::vector<ProcessColumn> columnOrder = {
     ProcessColumn::Name,
@@ -85,6 +91,10 @@ MainWindow::MainWindow(QWidget *parent)
     networkInterfacesExpanded(true)
 {
     ui->setupUi(this);
+    ui->historyPageLayout->setStretch(0, 0);
+    ui->historyPageLayout->setStretch(1, 0);
+    ui->historyPageLayout->setStretch(2, 1);
+    
     hide();
 
     // ICON
@@ -106,6 +116,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     loadThemeSettings();
     applyTheme();
+    loadRecordingSettings();
 
     qDebug() << "Theme loaded - SectionHeader:" << currentTheme.value("sectionHeader").name();
     qDebug() << "Theme loaded - Accent:" << currentTheme.value("accent").name();
@@ -141,6 +152,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupGraphs();
     setupProcessTable();
+    setupHistoryTable();
+    
+    currentHistorySortColumn = HistoryColumn::LastSeen;
+    currentHistorySortState = SortState::Normal;
+    
     updatePageHeader();
     updateSidebarAppearance();
     updateSidebarHighlight();
@@ -155,6 +171,38 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->memoryButton, &QPushButton::clicked, this, &MainWindow::showMemoryPage);
     connect(ui->diskButton, &QPushButton::clicked, this, &MainWindow::showDiskPage);
     connect(ui->networkButton, &QPushButton::clicked, this, &MainWindow::showNetworkPage);
+    connect(ui->historyButton, &QPushButton::clicked, this, &MainWindow::showHistoryPage);
+    
+    connect(ui->historySearchBar, &QLineEdit::textChanged,
+        this, &MainWindow::onHistorySearchTextChanged);
+        
+    connect(ui->historyTable->horizontalHeader(), &QHeaderView::sectionClicked,
+        this, &MainWindow::onHistoryHeaderClicked);
+
+    connect(ui->historyExportButton, &QPushButton::clicked, this, [this]() {
+        QString fileName = QFileDialog::getSaveFileName(
+            this,
+            "Export History CSV",
+            QDir::homePath() + "/history_export.csv",
+            "CSV Files (*.csv)"
+        );
+
+        if (fileName.isEmpty())
+            return;
+
+        exportSelectedHistoryToCSV(fileName.toStdString());
+    });
+    
+    connect(ui->historyStartButton, &QPushButton::clicked,
+        this, &MainWindow::onStartRecordingClicked);
+    connect(ui->historyRecordForButton, &QPushButton::clicked,
+        this, &MainWindow::onRecordForClicked);
+    connect(ui->historyStopButton, &QPushButton::clicked,
+            this, &MainWindow::onStopRecordingClicked);
+    connect(ui->historySessionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        this, &MainWindow::onRecordingSessionChanged);
+    connect(ui->historyRecordOnStartupCheckBox, &QCheckBox::toggled,
+        this, &MainWindow::onRecordOnStartupToggled);
 
     connect(ui->cpuUsageToggleButton, &QPushButton::clicked,
             this, &MainWindow::toggleCpuUsageSection);
@@ -194,10 +242,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(workerThread, &QThread::finished, statsWorker, &QObject::deleteLater);
 
     workerThread->start();
-
+    
+    if (recordOnStartup)
+    {
+        startRecordingSession();
+    }
+    
     // Default interval: 1000ms (1 second)
     timer->start(1000);
-
+    
     // Kick off first sample immediately without waiting for first tick
     emit requestStats();
 
@@ -237,6 +290,54 @@ MainWindow::~MainWindow()
 void MainWindow::setRefreshInterval(int milliseconds)
 {
     timer->setInterval(milliseconds);
+}
+
+void MainWindow::startRecordingSession()
+{
+    RecordingSession session;
+    session.startedAt = std::chrono::system_clock::now();
+    session.endedAt = session.startedAt;
+
+    recordingSessions.push_back(session);
+    currentRecordingSessionIndex = static_cast<int>(recordingSessions.size()) - 1;
+    isRecording = true;
+    
+    refreshRecordingSessionComboBox();
+}
+
+void MainWindow::stopRecordingSession()
+{
+    if (currentRecordingSessionIndex >= 0 &&
+        currentRecordingSessionIndex < static_cast<int>(recordingSessions.size()))
+    {
+        recordingSessions[currentRecordingSessionIndex].endedAt = std::chrono::system_clock::now();
+    }
+
+    isRecording = false;
+    
+    refreshRecordingSessionComboBox();
+}
+
+const RecordingSession* MainWindow::selectedRecordingSession() const
+{
+    if (currentRecordingSessionIndex < 0 ||
+        currentRecordingSessionIndex >= static_cast<int>(recordingSessions.size()))
+    {
+        return nullptr;
+    }
+
+    return &recordingSessions[currentRecordingSessionIndex];
+}
+
+RecordingSession* MainWindow::selectedRecordingSession()
+{
+    if (currentRecordingSessionIndex < 0 ||
+        currentRecordingSessionIndex >= static_cast<int>(recordingSessions.size()))
+    {
+        return nullptr;
+    }
+
+    return &recordingSessions[currentRecordingSessionIndex];
 }
 
 void MainWindow::setupGraphs()
@@ -968,6 +1069,10 @@ void MainWindow::updatePageHeader()
         ui->pageTitleLabel->setText("Network");
         ui->stackedWidget->setCurrentWidget(ui->networkPage);
         break;
+    case MonitorPage::History:
+        ui->pageTitleLabel->setText("History");
+        ui->stackedWidget->setCurrentWidget(ui->historyPage);
+    break;
     }
 }
 
@@ -996,6 +1101,10 @@ void MainWindow::applyDefaultSplitterSizes()
     case MonitorPage::Network:
         sizes << 330 << 330;
         break;
+        
+    case MonitorPage::History:
+        sizes << 1000 << 0;
+        break;
     }
 
     ui->mainVerticalSplitter->setSizes(sizes);
@@ -1009,6 +1118,18 @@ void MainWindow::updateCurrentPageHeight()
 
     page->adjustSize();
     page->updateGeometry();
+
+    if (currentPage == MonitorPage::History)
+    {
+        ui->stackedWidget->setMinimumHeight(0);
+        ui->stackedWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+
+        ui->mainScrollAreaWidgetContents->adjustSize();
+        ui->mainScrollAreaWidgetContents->updateGeometry();
+        ui->mainScrollArea->widget()->adjustSize();
+        ui->mainScrollArea->widget()->updateGeometry();
+        return;
+    }
 
     const int pageHeight = page->sizeHint().height();
 
@@ -1068,6 +1189,7 @@ void MainWindow::updateSidebarHighlight()
     setNavButtonActive(ui->memoryButton, currentPage == MonitorPage::Memory);
     setNavButtonActive(ui->diskButton, currentPage == MonitorPage::Disk);
     setNavButtonActive(ui->networkButton, currentPage == MonitorPage::Network);
+    setNavButtonActive(ui->historyButton, currentPage == MonitorPage::History);
 
     ui->sidebarFrame->update();
 }
@@ -1275,6 +1397,292 @@ void MainWindow::setupProcessTable()
             this, &MainWindow::showProcessContextMenu);
 }
 
+void MainWindow::setupHistoryTable()
+{
+    ui->historyTable->setColumnCount(9);
+
+    QStringList headers;
+    headers << "Name"
+            << "PID"
+            << "Samples"
+            << "Status"
+            << "Avg CPU %"
+            << "Peak CPU %"
+            << "Avg RSS MB"
+            << "First Seen"
+            << "Last Seen";
+
+    ui->historyTable->setHorizontalHeaderLabels(headers);
+    ui->historyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui->historyTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->historyTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->historyTable->setAlternatingRowColors(true);
+    ui->historyTable->verticalHeader()->setVisible(false);
+
+    ui->historyTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->historyTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+
+    ui->historyTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->historyTable->setMinimumHeight(0);
+    
+    updateHistoryHeaderLabels();
+}
+
+void MainWindow::populateHistoryTable()
+{
+    int previouslySelectedPid = -1;
+    qlonglong previouslySelectedStartTimeTicks = -1;
+
+    int selectedRow = ui->historyTable->currentRow();
+    if (selectedRow >= 0)
+    {
+        QTableWidgetItem *selectedPidItem = ui->historyTable->item(selectedRow, 1);
+        if (selectedPidItem)
+        {
+            previouslySelectedPid = selectedPidItem->text().toInt();
+            previouslySelectedStartTimeTicks = selectedPidItem->data(Qt::UserRole).toLongLong();
+        }
+    }
+    
+    ui->historyTable->setRowCount(0);
+
+    const RecordingSession* session = selectedRecordingSession();
+    if (!session)
+    {
+        ui->historySummaryLabel->setText("History: no recording session selected");
+        return;
+    }
+    
+    struct HistorySummary
+    {
+        int pid = 0;
+        long long startTimeTicks = 0;
+        QString name;
+        QString firstSeen;
+        QString lastSeen;
+        int sampleCount = 0;
+        double cpuSum = 0.0;
+        double cpuPeak = 0.0;
+        double rssSum = 0.0;
+        bool running = false;
+    };
+
+    std::unordered_map<std::string, HistorySummary> summaries;
+
+    for (const auto &entry : session->history)
+    {
+        std::time_t t = std::chrono::system_clock::to_time_t(entry.first);
+        QString timestamp = QString::fromStdString(std::string(std::ctime(&t)));
+        timestamp = timestamp.trimmed();
+
+        for (const auto &row : entry.second)
+        {
+            std::string key = std::to_string(row.pid) + "_" + std::to_string(row.startTimeTicks);
+            auto &summary = summaries[key];
+
+            if (summary.sampleCount == 0)
+            {
+                summary.pid = row.pid;
+                summary.startTimeTicks = row.startTimeTicks;
+                summary.name = QString::fromStdString(row.name);
+                summary.firstSeen = timestamp;
+                summary.cpuPeak = row.cpuPercent;
+            }
+
+            summary.lastSeen = timestamp;
+            summary.sampleCount++;
+            summary.cpuSum += row.cpuPercent;
+            summary.rssSum += row.rssMB;
+
+            if (row.cpuPercent > summary.cpuPeak)
+                summary.cpuPeak = row.cpuPercent;
+
+            summary.name = QString::fromStdString(row.name);
+        }
+    }
+
+    if (!session->history.empty())
+    {
+        const auto &latestSnapshot = session->history.back().second;
+        for (const auto &row : latestSnapshot)
+        {
+            std::string key = std::to_string(row.pid) + "_" + std::to_string(row.startTimeTicks);
+            auto it = summaries.find(key);
+            if (it != summaries.end())
+                it->second.running = true;
+        }
+    }
+
+    std::vector<HistorySummary> rows;
+    rows.reserve(summaries.size());
+
+    for (const auto &pair : summaries)
+        rows.push_back(pair.second);
+
+    if (currentHistorySortState == SortState::Normal)
+    {
+        std::sort(rows.begin(), rows.end(),
+                  [](const HistorySummary &a, const HistorySummary &b)
+                  {
+                      return a.lastSeen > b.lastSeen;
+                  });
+    }
+    else
+    {
+        bool descending = (currentHistorySortState == SortState::Descending);
+
+        std::sort(rows.begin(), rows.end(),
+                  [this, descending](const HistorySummary &a, const HistorySummary &b)
+                  {
+                      switch (currentHistorySortColumn)
+                      {
+                      case HistoryColumn::Name:
+                          return descending ? (a.name > b.name) : (a.name < b.name);
+
+                      case HistoryColumn::PID:
+                          return descending ? (a.pid > b.pid) : (a.pid < b.pid);
+
+                      case HistoryColumn::Samples:
+                          return descending ? (a.sampleCount > b.sampleCount) : (a.sampleCount < b.sampleCount);
+
+                      case HistoryColumn::Status:
+                          return descending ? ((a.running ? 1 : 0) > (b.running ? 1 : 0))
+                                            : ((a.running ? 1 : 0) < (b.running ? 1 : 0));
+
+                      case HistoryColumn::AvgCpu:
+                      {
+                          double aAvg = (a.sampleCount > 0)
+                              ? (a.cpuSum / static_cast<double>(a.sampleCount))
+                              : 0.0;
+                          double bAvg = (b.sampleCount > 0)
+                              ? (b.cpuSum / static_cast<double>(b.sampleCount))
+                              : 0.0;
+                          return descending ? (aAvg > bAvg) : (aAvg < bAvg);
+                      }
+
+                      case HistoryColumn::PeakCpu:
+                          return descending ? (a.cpuPeak > b.cpuPeak) : (a.cpuPeak < b.cpuPeak);
+
+                      case HistoryColumn::AvgRssMB:
+                      {
+                          double aAvg = (a.sampleCount > 0)
+                              ? (a.rssSum / static_cast<double>(a.sampleCount))
+                              : 0.0;
+                          double bAvg = (b.sampleCount > 0)
+                              ? (b.rssSum / static_cast<double>(b.sampleCount))
+                              : 0.0;
+                          return descending ? (aAvg > bAvg) : (aAvg < bAvg);
+                      }
+
+                      case HistoryColumn::FirstSeen:
+                          return descending ? (a.firstSeen > b.firstSeen) : (a.firstSeen < b.firstSeen);
+
+                      case HistoryColumn::LastSeen:
+                          return descending ? (a.lastSeen > b.lastSeen) : (a.lastSeen < b.lastSeen);
+                      }
+
+                      return false;
+                  });
+    }
+
+    int rowIndex = 0;
+    for (const auto &summary : rows)
+    {
+        ui->historyTable->insertRow(rowIndex);
+
+        double avgCpu = (summary.sampleCount > 0)
+            ? (summary.cpuSum / static_cast<double>(summary.sampleCount))
+            : 0.0;
+
+        double avgRss = (summary.sampleCount > 0)
+            ? (summary.rssSum / static_cast<double>(summary.sampleCount))
+            : 0.0;
+
+        QTableWidgetItem *pidItem = new QTableWidgetItem(QString::number(summary.pid));
+        pidItem->setData(Qt::UserRole, QVariant::fromValue(static_cast<qlonglong>(summary.startTimeTicks)));
+
+        ui->historyTable->setItem(rowIndex, 0, new QTableWidgetItem(summary.name));
+        ui->historyTable->setItem(rowIndex, 1, pidItem);
+        ui->historyTable->setItem(rowIndex, 2, new QTableWidgetItem(QString::number(summary.sampleCount)));
+        ui->historyTable->setItem(rowIndex, 3, new QTableWidgetItem(summary.running ? "Running" : "Exited"));
+        ui->historyTable->setItem(rowIndex, 4, new QTableWidgetItem(QString::number(avgCpu, 'f', 1)));
+        ui->historyTable->setItem(rowIndex, 5, new QTableWidgetItem(QString::number(summary.cpuPeak, 'f', 1)));
+        ui->historyTable->setItem(rowIndex, 6, new QTableWidgetItem(QString::number(avgRss, 'f', 1)));
+        ui->historyTable->setItem(rowIndex, 7, new QTableWidgetItem(summary.firstSeen));
+        ui->historyTable->setItem(rowIndex, 8, new QTableWidgetItem(summary.lastSeen));
+        
+        if (summary.pid == previouslySelectedPid &&
+            summary.startTimeTicks == previouslySelectedStartTimeTicks)
+        {
+            ui->historyTable->selectRow(rowIndex);
+        }
+        
+        ++rowIndex;
+    }
+
+    ui->historySummaryLabel->setText(
+    QString("History: %1 snapshots recorded, %2 process sessions")
+        .arg(session->history.size())
+        .arg(rowIndex)
+    );
+
+    onHistorySearchTextChanged(ui->historySearchBar->text());
+}
+
+void MainWindow::onStartRecordingClicked()
+{
+    startRecordingSession();
+    populateHistoryTable();
+
+    QMessageBox::information(this, "Recording",
+                             "Started a new recording session.");
+}
+
+void MainWindow::onStopRecordingClicked()
+{
+    if (!isRecording)
+    {
+        QMessageBox::information(this, "Recording",
+                                 "Recording is already stopped.");
+        return;
+    }
+
+    timedRecordingActive = false;
+    stopRecordingSession();
+    populateHistoryTable();
+
+    QMessageBox::information(this, "Recording",
+                             "Recording session stopped.");
+}
+
+void MainWindow::onHistorySearchTextChanged(const QString &text)
+{
+    QString query = text.trimmed();
+
+    for (int row = 0; row < ui->historyTable->rowCount(); ++row)
+    {
+        QTableWidgetItem *nameItem = ui->historyTable->item(row, 0);
+        QTableWidgetItem *pidItem = ui->historyTable->item(row, 1);
+
+        bool match = false;
+
+        if (query.isEmpty())
+        {
+            match = true;
+        }
+        else
+        {
+            QString pidText = pidItem ? pidItem->text() : "";
+            QString nameText = nameItem ? nameItem->text() : "";
+
+            match = pidText.startsWith(query) ||
+                    nameText.contains(query, Qt::CaseInsensitive);
+        }
+
+        ui->historyTable->setRowHidden(row, !match);
+    }
+}
+
 void MainWindow::rebuildProcessTableColumns()
 {
     ui->processTable->clearContents();
@@ -1357,6 +1765,30 @@ void MainWindow::rebuildProcessTableColumns()
 
 void MainWindow::populateProcessTable(const std::vector<ProcessRow> &rows)
 {
+    int pidColumnIndex = -1;
+    for (int i = 0; i < static_cast<int>(visibleColumns.size()); ++i)
+    {
+        if (visibleColumns[i] == ProcessColumn::PID)
+        {
+            pidColumnIndex = i;
+            break;
+        }
+    }
+
+    int previouslySelectedPid = -1;
+    qlonglong previouslySelectedStartTimeTicks = -1;
+
+    int selectedRow = ui->processTable->currentRow();
+    if (selectedRow >= 0 && pidColumnIndex >= 0)
+    {
+        QTableWidgetItem *selectedPidItem = ui->processTable->item(selectedRow, pidColumnIndex);
+        if (selectedPidItem)
+        {
+            previouslySelectedPid = selectedPidItem->text().toInt();
+            previouslySelectedStartTimeTicks = selectedPidItem->data(Qt::UserRole).toLongLong();
+        }
+    }
+
     int newRowCount = static_cast<int>(rows.size());
 
     if (ui->processTable->rowCount() != newRowCount)
@@ -1375,12 +1807,30 @@ void MainWindow::populateProcessTable(const std::vector<ProcessRow> &rows)
             if (!item)
             {
                 item = new QTableWidgetItem(text);
+
+                if (column == ProcessColumn::PID)
+                {
+                    item->setData(Qt::UserRole, QVariant::fromValue(static_cast<qlonglong>(row.startTimeTicks)));
+                }
+
                 ui->processTable->setItem(rowIndex, colIndex, item);
             }
-            else if (item->text() != text)
+            else
             {
-                item->setText(text);
+                if (item->text() != text)
+                    item->setText(text);
+
+                if (column == ProcessColumn::PID)
+                {
+                    item->setData(Qt::UserRole, QVariant::fromValue(static_cast<qlonglong>(row.startTimeTicks)));
+                }
             }
+        }
+
+        if (row.pid == previouslySelectedPid &&
+            row.startTimeTicks == previouslySelectedStartTimeTicks)
+        {
+            ui->processTable->selectRow(rowIndex);
         }
     }
 
@@ -1524,6 +1974,14 @@ void MainWindow::setCurrentPage(MonitorPage page)
 
     rebuildProcessTableColumns();
     populateProcessTable(applySorting(baseRows));
+
+    bool isHistoryPage = (page == MonitorPage::History);
+
+    ui->processDividerFrame->setVisible(!isHistoryPage);
+    ui->processSectionLabel->setVisible(!isHistoryPage);
+    ui->processSearchBar->setVisible(!isHistoryPage);
+    ui->processTable->setVisible(!isHistoryPage);
+
     updatePageHeader();
     updateSidebarHighlight();
     applyDefaultSplitterSizes();
@@ -1561,8 +2019,34 @@ void MainWindow::showNetworkPage()
     setCurrentPage(MonitorPage::Network);
 }
 
+void MainWindow::showHistoryPage()
+{
+    setCurrentPage(MonitorPage::History);
+    refreshRecordingSessionComboBox();
+    populateHistoryTable();
+}
+
 void MainWindow::onStatsResult(SystemData data, std::vector<ProcessRow> rows)
 {
+    // history capture
+    auto now = std::chrono::system_clock::now();
+
+    if (isRecording)
+    {
+        RecordingSession* session = selectedRecordingSession();
+        if (session)
+        {
+            session->history.push_back({now, rows});
+            session->endedAt = now;
+
+            const size_t MAX_HISTORY = 1000;
+            if (session->history.size() > MAX_HISTORY)
+            {
+                session->history.erase(session->history.begin());
+            }
+        }
+    }
+    
     updateCpuStats(data);
     updateMemoryStats(data);
     updateDiskStats(data);
@@ -1571,6 +2055,13 @@ void MainWindow::onStatsResult(SystemData data, std::vector<ProcessRow> rows)
 
     baseRows = rows;
     populateProcessTable(applySorting(baseRows));
+    
+    checkTimedRecordingStop();
+    
+    if (currentPage == MonitorPage::History)
+    {
+        populateHistoryTable();
+    }
 }
 
 // right click for Process
@@ -1579,6 +2070,8 @@ void MainWindow::showProcessContextMenu(const QPoint &pos)
     QTableWidgetItem *item = ui->processTable->itemAt(pos);
     if (!item)
         return;
+
+    ui->processTable->selectRow(item->row());
 
     QMenu menu(this);
     QAction *terminateAction = menu.addAction("Terminate Process (SIGTERM)");
@@ -2017,4 +2510,372 @@ void MainWindow::showSettingsDialog()
         saveThemeSettings();
         updateSidebarHighlight();
     }
+}
+
+void MainWindow::exportToCSV(const std::string& filename)
+{
+    const RecordingSession* session = selectedRecordingSession();
+    if (!session)
+    {
+        QMessageBox::warning(this, "Export History",
+                             "No recording session is currently selected.");
+        return;
+    }
+
+    std::ofstream out(filename);
+    if (!out)
+    {
+        QMessageBox::critical(this, "Export History",
+                              "Failed to open the export file for writing.");
+        return;
+    }
+
+    out << "timestamp,pid,startTimeTicks,name,state,cpuPercent,cpuTimeSec,threads,"
+           "rssMB,vszMB,sharedMB,readBps,writeBps,totalRead,totalWrite,"
+           "priority,nice\n";
+
+    for (const auto& [time, rows] : session->history)
+    {
+        auto t = std::chrono::system_clock::to_time_t(time);
+
+        for (const auto& row : rows)
+        {
+            out << t << ","
+                << row.pid << ","
+                << row.startTimeTicks << ","
+                << row.name << ","
+                << row.state << ","
+                << row.cpuPercent << ","
+                << row.cpuTimeSec << ","
+                << row.threads << ","
+                << row.rssMB << ","
+                << row.vszMB << ","
+                << row.sharedMB << ","
+                << row.readBytesPerSec << ","
+                << row.writeBytesPerSec << ","
+                << row.totalReadBytes << ","
+                << row.totalWriteBytes << ","
+                << row.priority << ","
+                << row.niceValue
+                << "\n";
+        }
+    }
+}
+
+void MainWindow::exportSelectedHistoryToCSV(const std::string& filename)
+{
+    int selectedRow = ui->historyTable->currentRow();
+    if (selectedRow < 0)
+    {
+        QMessageBox::information(this, "Export History",
+                                 "Please select a process session in the History table first.");
+        return;
+    }
+
+    const RecordingSession* session = selectedRecordingSession();
+    if (!session)
+    {
+        QMessageBox::warning(this, "Export History",
+                             "No recording session is currently selected.");
+        return;
+    }
+
+    QTableWidgetItem *pidItem = ui->historyTable->item(selectedRow, 1);
+    if (!pidItem)
+    {
+        QMessageBox::warning(this, "Export History",
+                             "Could not determine the selected PID.");
+        return;
+    }
+
+    int selectedPid = pidItem->text().toInt();
+    qlonglong selectedStartTimeTicks = pidItem->data(Qt::UserRole).toLongLong();
+
+    if (selectedPid <= 0 || selectedStartTimeTicks <= 0)
+    {
+        QMessageBox::warning(this, "Export History",
+                             "Selected process session is invalid.");
+        return;
+    }
+
+    std::ofstream out(filename);
+    if (!out)
+    {
+        QMessageBox::critical(this, "Export History",
+                              "Failed to open the export file for writing.");
+        return;
+    }
+
+    out << "timestamp,pid,startTimeTicks,name,state,cpuPercent,cpuTimeSec,threads,"
+           "rssMB,vszMB,sharedMB,readBps,writeBps,totalRead,totalWrite,"
+           "priority,nice\n";
+
+    int writtenRows = 0;
+
+    for (const auto &entry : session->history)
+    {
+        std::time_t t = std::chrono::system_clock::to_time_t(entry.first);
+
+        for (const auto &row : entry.second)
+        {
+            if (row.pid != selectedPid || row.startTimeTicks != selectedStartTimeTicks)
+                continue;
+
+            out << t << ","
+                << row.pid << ","
+                << row.startTimeTicks << ","
+                << row.name << ","
+                << row.state << ","
+                << row.cpuPercent << ","
+                << row.cpuTimeSec << ","
+                << row.threads << ","
+                << row.rssMB << ","
+                << row.vszMB << ","
+                << row.sharedMB << ","
+                << row.readBytesPerSec << ","
+                << row.writeBytesPerSec << ","
+                << row.totalReadBytes << ","
+                << row.totalWriteBytes << ","
+                << row.priority << ","
+                << row.niceValue
+                << "\n";
+
+            ++writtenRows;
+        }
+    }
+
+    QMessageBox::information(
+        this,
+        "Export History",
+        QString("Exported %1 rows for PID %2 to:\n%3")
+            .arg(writtenRows)
+            .arg(selectedPid)
+            .arg(QString::fromStdString(filename))
+    );
+}
+
+void MainWindow::refreshRecordingSessionComboBox()
+{
+    ui->historySessionComboBox->blockSignals(true);
+    ui->historySessionComboBox->clear();
+
+    for (int i = 0; i < static_cast<int>(recordingSessions.size()); ++i)
+    {
+        const RecordingSession &session = recordingSessions[i];
+
+        std::time_t startT = std::chrono::system_clock::to_time_t(session.startedAt);
+        QString startText = QString::fromStdString(std::string(std::ctime(&startT))).trimmed();
+
+        QString label = QString("Session %1").arg(i + 1);
+        ui->historySessionComboBox->addItem(label);
+        ui->historySessionComboBox->setItemData(
+            i,
+            QString("Started: %1").arg(startText),
+            Qt::ToolTipRole
+        );
+    }
+
+    if (currentRecordingSessionIndex >= 0 &&
+        currentRecordingSessionIndex < ui->historySessionComboBox->count())
+    {
+        ui->historySessionComboBox->setCurrentIndex(currentRecordingSessionIndex);
+    }
+
+    ui->historySessionComboBox->blockSignals(false);
+}
+
+void MainWindow::onRecordingSessionChanged(int index)
+{
+    if (index < 0 || index >= static_cast<int>(recordingSessions.size()))
+        return;
+
+    currentRecordingSessionIndex = index;
+    populateHistoryTable();
+}
+
+void MainWindow::loadRecordingSettings()
+{
+    QSettings settings("ProcessParty", "Recording");
+    recordOnStartup = settings.value("recordOnStartup", false).toBool();
+
+    if (ui->historyRecordOnStartupCheckBox)
+        ui->historyRecordOnStartupCheckBox->setChecked(recordOnStartup);
+}
+
+void MainWindow::saveRecordingSettings()
+{
+    QSettings settings("ProcessParty", "Recording");
+    settings.setValue("recordOnStartup", recordOnStartup);
+}
+
+void MainWindow::onRecordOnStartupToggled(bool checked)
+{
+    recordOnStartup = checked;
+    saveRecordingSettings();
+}
+
+void MainWindow::onRecordForClicked()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Record For...");
+    dialog.setMinimumSize(320, 120);
+    dialog.resize(400, 140);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(15, 15, 15, 15);
+    mainLayout->setSpacing(12);
+
+    QLabel *titleLabel = new QLabel("Select recording duration:", &dialog);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(titleLabel);
+
+    QHBoxLayout *timeLayout = new QHBoxLayout();
+
+    QSpinBox *minutesSpinBox = new QSpinBox(&dialog);
+    minutesSpinBox->setRange(0, 999);
+    minutesSpinBox->setSuffix(" min");
+
+    QSpinBox *secondsSpinBox = new QSpinBox(&dialog);
+    secondsSpinBox->setRange(0, 59);
+    secondsSpinBox->setSuffix(" sec");
+
+    timeLayout->addStretch();
+    timeLayout->addWidget(minutesSpinBox);
+    timeLayout->addWidget(secondsSpinBox);
+    timeLayout->addStretch();
+
+    mainLayout->addLayout(timeLayout);
+
+    QDialogButtonBox *buttonBox = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+        &dialog
+    );
+    mainLayout->addWidget(buttonBox);
+
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    int totalSeconds = minutesSpinBox->value() * 60 + secondsSpinBox->value();
+    if (totalSeconds <= 0)
+    {
+        QMessageBox::warning(this, "Timed Recording",
+                             "Please choose a duration greater than zero.");
+        return;
+    }
+
+    startRecordingSession();
+    timedRecordingActive = true;
+    timedRecordingEndTime = std::chrono::steady_clock::now() + std::chrono::seconds(totalSeconds);
+
+    populateHistoryTable();
+
+    QMessageBox::information(
+        this,
+        "Timed Recording",
+        QString("Started a new recording session for %1 minute(s) and %2 second(s).")
+            .arg(minutesSpinBox->value())
+            .arg(secondsSpinBox->value())
+    );
+}
+
+void MainWindow::checkTimedRecordingStop()
+{
+    if (!isRecording || !timedRecordingActive)
+        return;
+
+    if (std::chrono::steady_clock::now() >= timedRecordingEndTime)
+    {
+        timedRecordingActive = false;
+        stopRecordingSession();
+        populateHistoryTable();
+
+        QMessageBox::information(this, "Timed Recording",
+                                 "Timed recording session completed.");
+    }
+}
+
+void MainWindow::onHistoryHeaderClicked(int logicalIndex)
+{
+    HistoryColumn clickedColumn;
+
+    switch (logicalIndex)
+    {
+    case 0: clickedColumn = HistoryColumn::Name; break;
+    case 1: clickedColumn = HistoryColumn::PID; break;
+    case 2: clickedColumn = HistoryColumn::Samples; break;
+    case 3: clickedColumn = HistoryColumn::Status; break;
+    case 4: clickedColumn = HistoryColumn::AvgCpu; break;
+    case 5: clickedColumn = HistoryColumn::PeakCpu; break;
+    case 6: clickedColumn = HistoryColumn::AvgRssMB; break;
+    case 7: clickedColumn = HistoryColumn::FirstSeen; break;
+    case 8: clickedColumn = HistoryColumn::LastSeen; break;
+    default: return;
+    }
+
+    if (currentHistorySortColumn != clickedColumn)
+    {
+        currentHistorySortColumn = clickedColumn;
+        currentHistorySortState = SortState::Descending;
+    }
+    else
+    {
+        switch (currentHistorySortState)
+        {
+        case SortState::Normal:
+            currentHistorySortState = SortState::Descending;
+            break;
+        case SortState::Descending:
+            currentHistorySortState = SortState::Ascending;
+            break;
+        case SortState::Ascending:
+            currentHistorySortState = SortState::Normal;
+            break;
+        }
+    }
+    updateHistoryHeaderLabels();
+    populateHistoryTable();
+}
+
+void MainWindow::updateHistoryHeaderLabels()
+{
+    QStringList headers;
+    headers << "Name"
+            << "PID"
+            << "Samples"
+            << "Status"
+            << "Avg CPU %"
+            << "Peak CPU %"
+            << "Avg RSS MB"
+            << "First Seen"
+            << "Last Seen";
+
+    if (currentHistorySortState != SortState::Normal)
+    {
+        int sortColumnIndex = -1;
+
+        switch (currentHistorySortColumn)
+        {
+        case HistoryColumn::Name:      sortColumnIndex = 0; break;
+        case HistoryColumn::PID:       sortColumnIndex = 1; break;
+        case HistoryColumn::Samples:   sortColumnIndex = 2; break;
+        case HistoryColumn::Status:    sortColumnIndex = 3; break;
+        case HistoryColumn::AvgCpu:    sortColumnIndex = 4; break;
+        case HistoryColumn::PeakCpu:   sortColumnIndex = 5; break;
+        case HistoryColumn::AvgRssMB:  sortColumnIndex = 6; break;
+        case HistoryColumn::FirstSeen: sortColumnIndex = 7; break;
+        case HistoryColumn::LastSeen:  sortColumnIndex = 8; break;
+        }
+
+        if (sortColumnIndex >= 0)
+        {
+            headers[sortColumnIndex] += (currentHistorySortState == SortState::Descending)
+                ? " ▼"
+                : " ▲";
+        }
+    }
+
+    ui->historyTable->setHorizontalHeaderLabels(headers);
 }
