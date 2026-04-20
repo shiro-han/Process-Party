@@ -2178,14 +2178,16 @@ void MainWindow::loadThemeSettings()
 {
     QSettings settings("ProcessParty", "Theme");
 
+    // Current themes from settings (saved to disk)
     currentTheme["accent"]        = QColor(settings.value("accent",        "#3b82f6").toString());
     currentTheme["background"]    = QColor(settings.value("background",    "#f8fafc").toString());
     currentTheme["panel"]         = QColor(settings.value("panel",         "#ffffff").toString());
-    currentTheme["sectionHeader"] = QColor(settings.value("sectionHeader", "#f1f5f9").toString());  // ← Missing
+    currentTheme["sectionHeader"] = QColor(settings.value("sectionHeader", "#f1f5f9").toString());
     currentTheme["text"]          = QColor(settings.value("text",          "#1e2937").toString());
     currentTheme["tableAlt"]      = QColor(settings.value("tableAlt",      "#f1f5f9").toString());
-    currentTheme["border"]        = QColor(settings.value("border",        "#64748b").toString());   // ← Missing
+    currentTheme["border"]        = QColor(settings.value("border",        "#64748b").toString());
 
+    // Current fonts from settings (saved to disk)
     m_savedFontFamily = settings.value("fontFamily", "Segoe UI").toString();
     m_savedFontSize   = settings.value("fontSize", 9).toInt();
 }
@@ -2204,7 +2206,8 @@ void MainWindow::saveThemeSettings()
     settings.sync();   // Force write to disk
 }
 
-void MainWindow::applyTheme()
+
+void MainWindow::applyTheme() // Applies the saved themes to the UI
 {
     QColor accent       = currentTheme.value("accent",       QColor("#3b82f6"));
     QColor bg           = currentTheme.value("background",   QColor("#f8fafc"));
