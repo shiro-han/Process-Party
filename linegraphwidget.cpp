@@ -432,6 +432,27 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(QPointF(x, plotRect.top()), QPointF(x, plotRect.bottom()));
     }
 
+    bool hasData = false;
+        for (const Series &series : m_series)
+        {
+            if (series.visible && !series.samples.empty())
+            {
+                hasData = true;
+                break;
+            }
+        }
+
+    if (!hasData)
+    {
+        // Only show "No series selected" for multi-series graphs that have all series hidden
+        if (!m_series.empty())
+        {
+            painter.setPen(palette().mid().color());
+            painter.drawText(plotRect, Qt::AlignCenter, "No series selected");
+        }
+    }
+
+    // Legend and line drawing
     if (!m_series.empty())
     {
         const std::vector<QColor> lineColors = {

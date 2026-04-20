@@ -116,10 +116,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     loadThemeSettings();
     applyTheme();
-    loadRecordingSettings();
-
-    qDebug() << "Theme loaded - SectionHeader:" << currentTheme.value("sectionHeader").name();
-    qDebug() << "Theme loaded - Accent:" << currentTheme.value("accent").name();
 
 
     ui->scrollContentLayout->setAlignment(Qt::AlignTop);
@@ -255,7 +251,7 @@ MainWindow::MainWindow(QWidget *parent)
     emit requestStats();
 
     // Force fix process table header
-    QTimer::singleShot(150, this, [this]() {
+    QTimer::singleShot(50, this, [this]() {
         QColor sectionHeader = currentTheme.value("sectionHeader");
         QColor textColor     = currentTheme.value("text");
         QColor borderColor   = currentTheme.value("border");
@@ -277,6 +273,7 @@ MainWindow::MainWindow(QWidget *parent)
             ui->processTable->horizontalHeader()->setStyleSheet(headerStyle);
             ui->processTable->horizontalHeader()->repaint();   // Force redraw
         }
+        applySavedFont();
     });
 }
 
@@ -2068,8 +2065,13 @@ void MainWindow::onStatsResult(SystemData data, std::vector<ProcessRow> rows)
 void MainWindow::showProcessContextMenu(const QPoint &pos)
 {
     QTableWidgetItem *item = ui->processTable->itemAt(pos);
-    if (!item)
-        return;
+    if (!item) return;
+
+    // Pause the table updates while menu is open
+    bool wasTimerActive = timer->isActive();
+    if (wasTimerActive) {
+        timer->stop();
+    }
 
     ui->processTable->selectRow(item->row());
 
@@ -2077,11 +2079,21 @@ void MainWindow::showProcessContextMenu(const QPoint &pos)
     QAction *terminateAction = menu.addAction("Terminate Process (SIGTERM)");
     QAction *killAction = menu.addAction("Kill Process (SIGKILL)");
 
-    connect(terminateAction, &QAction::triggered, this, [this]() {
+    connect(terminateAction, &QAction::triggered, this, [this, wasTimerActive]() {
         sendSignalToSelectedProcess(SIGTERM);
+        if (wasTimerActive) timer->start(1000);   // Resume
     });
-    connect(killAction, &QAction::triggered, this, [this]() {
+
+    connect(killAction, &QAction::triggered, this, [this, wasTimerActive]() {
         sendSignalToSelectedProcess(SIGKILL);
+        if (wasTimerActive) timer->start(1000);   // Resume
+    });
+
+    // Resume if user clicks outside the menu (cancels)
+    connect(&menu, &QMenu::aboutToHide, this, [this, wasTimerActive]() {
+        if (wasTimerActive && !timer->isActive()) {
+            timer->start(1000);
+        }
     });
 
     menu.exec(ui->processTable->viewport()->mapToGlobal(pos));
@@ -2173,6 +2185,9 @@ void MainWindow::loadThemeSettings()
     currentTheme["text"]          = QColor(settings.value("text",          "#1e2937").toString());
     currentTheme["tableAlt"]      = QColor(settings.value("tableAlt",      "#f1f5f9").toString());
     currentTheme["border"]        = QColor(settings.value("border",        "#64748b").toString());   // ← Missing
+
+    m_savedFontFamily = settings.value("fontFamily", "Segoe UI").toString();
+    m_savedFontSize   = settings.value("fontSize", 9).toInt();
 }
 
 void MainWindow::saveThemeSettings()
@@ -2181,6 +2196,12 @@ void MainWindow::saveThemeSettings()
     for (auto it = currentTheme.begin(); it != currentTheme.end(); ++it) {
         settings.setValue(it.key(), it.value().name());
     }
+
+    QFont currentFont = qApp->font();
+    settings.setValue("fontFamily", currentFont.family());
+    settings.setValue("fontSize", currentFont.pointSize());
+
+    settings.sync();   // Force write to disk
 }
 
 void MainWindow::applyTheme()
@@ -2505,9 +2526,21 @@ void MainWindow::showSettingsDialog()
 
     if (dialog.exec() == QDialog::Accepted) {
         QFont newFont = fontCombo->currentFont();
+
+        // Apply font globally
         qApp->setFont(newFont);
+
+        // Updates all widgets
+        QWidgetList widgets = QApplication::allWidgets();
+        for (QWidget *w : widgets) {
+            w->setFont(newFont);
+            w->update();
+        }
+
         applyTheme();
         saveThemeSettings();
+
+        // Extra safety
         updateSidebarHighlight();
     }
 }
@@ -2878,4 +2911,17 @@ void MainWindow::updateHistoryHeaderLabels()
     }
 
     ui->historyTable->setHorizontalHeaderLabels(headers);
+}
+
+void MainWindow::applySavedFont()
+{
+    QFont font(m_savedFontFamily, m_savedFontSize);
+    qApp->setFont(font);
+
+    // Apply to all existing widgets
+    QWidgetList widgets = QApplication::allWidgets();
+    for (QWidget *w : widgets) {
+        w->setFont(font);
+        w->update();
+    }
 }
