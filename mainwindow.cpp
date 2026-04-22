@@ -63,7 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     statsWorker(new StatsWorker),
     currentPage(MonitorPage::Dashboard),
     currentSortColumn(ProcessColumn::CpuPercent),
-    currentSortState(SortState::Normal),
+    currentSortState(SortState::Descending),
     dashboardCpuGraph(nullptr),
     dashboardMemoryGraph(nullptr),
     dashboardDiskGraph(nullptr),
@@ -1208,6 +1208,7 @@ void MainWindow::updateSidebarAppearance()
     ui->networkButton->setText(expanded ? "Network" : "Net");
     ui->settingsButton->setText(expanded ? "Settings" : "     ⚙");
 
+
     updateSidebarHighlight();
 }
 
@@ -2270,13 +2271,14 @@ void MainWindow::applyTheme() // Applies the saved themes to the UI
         "border: 2px solid %3;"
     ).arg(sectionHeader.name())
      .arg(text.name())
-     .arg(borderColor.name());
+     .arg(accent.name());
 
     if (ui->dashboardButton) ui->dashboardButton->setStyleSheet(buttonStyle);
     if (ui->cpuButton) ui->cpuButton->setStyleSheet(buttonStyle);
     if (ui->memoryButton) ui->memoryButton->setStyleSheet(buttonStyle);
     if (ui->diskButton) ui->diskButton->setStyleSheet(buttonStyle);
     if (ui->networkButton) ui->networkButton->setStyleSheet(buttonStyle);
+    if (ui->historyButton) ui->historyButton->setStyleSheet(buttonStyle);
 
     if (ui->cpuUsageToggleButton) ui->cpuUsageToggleButton->setStyleSheet(buttonStyle);
     if (ui->cpuPerCoreToggleButton) ui->cpuPerCoreToggleButton->setStyleSheet(buttonStyle);
@@ -2352,9 +2354,11 @@ void MainWindow::showSettingsDialog()
     dialog.resize(620, 680);
     dialog.setWindowModality(Qt::WindowModal);
 
+    // Backup original theme in case user cancels
+    QMap<QString, QColor> originalTheme = currentTheme;
+
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
     mainLayout->setSpacing(12);
-
     mainLayout->addWidget(new QLabel("<h2>Customize Theme</h2>"));
 
     // === Color Options ===
@@ -2373,24 +2377,30 @@ void MainWindow::showSettingsDialog()
          .arg(current.lightness() > 130 ? "black" : "white"));
 
         connect(btn, &QPushButton::clicked, this, [this, btn, key, label]() {
+            QColor originalColor = currentTheme.value(key);   // Saves original in case user reverts
+
             QColorDialog dlg(currentTheme.value(key), this);
             dlg.setWindowTitle("Choose " + label);
             dlg.setOption(QColorDialog::DontUseNativeDialog, true);
-            dlg.setWindowModality(Qt::WindowModal);
+
             if (dlg.exec() == QDialog::Accepted) {
                 QColor chosen = dlg.currentColor();
                 if (chosen.isValid()) {
                     currentTheme[key] = chosen;
-                    btn->setStyleSheet(QString(
-                        "background-color: %1; "
-                        "color: %2; "
-                        "font-weight: bold; "
-                        "border: 2px solid #555; "
-                        "border-radius: 6px;"
-                    ).arg(chosen.name())
-                     .arg(chosen.lightness() > 130 ? "black" : "white"));
+                    applyTheme();                    // Live preview on OK
                 }
             }
+
+            // Update button appearance
+            QColor updated = currentTheme.value(key);
+            btn->setStyleSheet(QString(
+                "background-color: %1; "
+                "color: %2; "
+                "font-weight: bold; "
+                "border: 2px solid #555; "
+                "border-radius: 6px;"
+            ).arg(updated.name())
+             .arg(updated.lightness() > 130 ? "black" : "white"));
         });
 
         mainLayout->addWidget(btn);
@@ -2529,11 +2539,8 @@ void MainWindow::showSettingsDialog()
 
     if (dialog.exec() == QDialog::Accepted) {
         QFont newFont = fontCombo->currentFont();
-
-        // Apply font globally
         qApp->setFont(newFont);
 
-        // Updates all widgets
         QWidgetList widgets = QApplication::allWidgets();
         for (QWidget *w : widgets) {
             w->setFont(newFont);
@@ -2542,8 +2549,12 @@ void MainWindow::showSettingsDialog()
 
         applyTheme();
         saveThemeSettings();
-
-        // Extra safety
+        updateSidebarHighlight();
+    }
+    else {
+        // User pressed Cancel → Revert everything
+        currentTheme = originalTheme;
+        applyTheme();
         updateSidebarHighlight();
     }
 }
