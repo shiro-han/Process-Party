@@ -1141,42 +1141,59 @@ void MainWindow::updateCurrentPageHeight()
 
 void MainWindow::setNavButtonActive(QPushButton *button, bool active)
 {
-    QColor accent = currentTheme.value("accent", QColor("#3b82f6"));
-    QColor text   = currentTheme.value("text",   QColor("#1e2937"));
-    QColor bg     = currentTheme.value("sectionHeader", QColor("#f1f5f9"));
+    QColor accent        = currentTheme.value("accent", QColor("#3b82f6"));
+    QColor sectionHeader = currentTheme.value("sectionHeader", QColor("#f1f5f9"));
+    QColor textColor     = currentTheme.value("text", QColor("#1e2937"));
+    QColor borderColor   = accent;
 
     if (active)
-    {
-        button->setStyleSheet(QString(
-            "QPushButton {"
-            "  font-weight: bold;"
-            "  background-color: %1;"
-            "  border: 2px solid %2;"
-            "  border-radius: 6px;"
-            "  padding: 6px 8px;"
-            "  text-align: left;"
-            "  color: %3;"
-            "}"
-        ).arg(accent.lighter(160).name())
-         .arg(accent.name())
-         .arg(text.name()));
-    }
-    else
-    {
-        button->setStyleSheet(QString(
-            "QPushButton {"
-            "  font-weight: normal;"
-            "  background-color: %1;"
-            "  border: 1px solid %2;"
-            "  border-radius: 6px;"
-            "  padding: 6px 8px;"
-            "  text-align: left;"
-            "  color: %3;"
-            "}"
-        ).arg(bg.name())
-         .arg(accent.darker(120).name())
-         .arg(text.name()));
-    }
+        {
+            button->setStyleSheet(QString(
+                "QPushButton {"
+                " font-weight: bold;"
+                " background-color: %1;"
+                " color: %2;"
+                " border: 2px solid %3;"
+                " border-radius: 6px;"
+                " padding: 8px 12px;"
+                " text-align: left;"
+                "}"
+                "QPushButton:hover {"
+                " background-color: %4;"
+                "}"
+                "QPushButton:pressed {"
+                " background-color: %5;"
+                "}"
+            ).arg(accent.name())
+             .arg(textColor.name())
+             .arg(borderColor.name())
+             .arg(QColor(accent.name()).lighter(120).name())   // Hover for active
+             .arg(QColor(accent.name()).darker(130).name()));  // Pressed for active
+        }
+        else
+        {
+            button->setStyleSheet(QString(
+                "QPushButton {"
+                " font-weight: normal;"
+                " background-color: %1;"
+                " color: %2;"
+                " border: 2px solid %3;"
+                " border-radius: 6px;"
+                " padding: 8px 12px;"
+                " text-align: left;"
+                "}"
+                "QPushButton:hover {"
+                " background-color: %4;"
+                "}"
+                "QPushButton:pressed {"
+                " background-color: %5;"
+                "}"
+            ).arg(sectionHeader.name())
+             .arg(textColor.name())
+             .arg(borderColor.name())
+             .arg(QColor(sectionHeader.name()).lighter(125).name())   // Hover for inactive
+             .arg(QColor(sectionHeader.name()).darker(135).name()));  // Pressed for inactive
+        }
 }
 
 void MainWindow::updateSidebarHighlight()
@@ -2260,18 +2277,28 @@ void MainWindow::applyTheme() // Applies the saved themes to the UI
     if (ui->networkDownloadStatTitleLabel) ui->networkDownloadStatTitleLabel->setStyleSheet(statTitleStyle);
     if (ui->networkUploadStatTitleLabel) ui->networkUploadStatTitleLabel->setStyleSheet(statTitleStyle);
 
-    // All Buttons with Border Color
+    // All Buttons Styling
     QString buttonStyle = QString(
-        "background-color: %1; "
-        "color: %2; "
-        "font-weight: bold; "
-        "padding: 6px 8px; "
-        "text-align: left; "
-        "border-radius: 6px; "
-        "border: 2px solid %3;"
-    ).arg(sectionHeader.name())
-     .arg(text.name())
-     .arg(accent.name());
+            "QPushButton {"
+            " background-color: %1;"
+            " color: %2;"
+            " font-weight: bold;"
+            " padding: 8px 12px;"
+            " text-align: left;"
+            " border-radius: 6px;"
+            " border: 2px solid %3;"
+            "}"
+            "QPushButton:hover {"
+            " background-color: %4;"
+            "}"
+            "QPushButton:pressed {"
+            " background-color: %5;"
+            "}"
+        ).arg(sectionHeader.name())
+         .arg(text.name())
+         .arg(accent.name())                                   // Border = Accent
+         .arg(QColor(sectionHeader.name()).lighter(115).name()) // Hover
+         .arg(QColor(sectionHeader.name()).darker(125).name());
 
     if (ui->dashboardButton) ui->dashboardButton->setStyleSheet(buttonStyle);
     if (ui->cpuButton) ui->cpuButton->setStyleSheet(buttonStyle);
@@ -2361,46 +2388,86 @@ void MainWindow::showSettingsDialog()
     mainLayout->setSpacing(12);
     mainLayout->addWidget(new QLabel("<h2>Customize Theme</h2>"));
 
-    // === Color Options ===
     auto addColorButton = [&](const QString& label, const QString& key, QColor defaultColor) {
         QPushButton *btn = new QPushButton(label);
         btn->setMinimumHeight(52);
 
         QColor current = currentTheme.value(key, defaultColor);
         btn->setStyleSheet(QString(
-            "background-color: %1; "
-            "color: %2; "
-            "font-weight: bold; "
-            "border: 2px solid #555; "
-            "border-radius: 6px;"
-        ).arg(current.name())
-         .arg(current.lightness() > 130 ? "black" : "white"));
+                    "QPushButton {"
+                    " background-color: %1;"
+                    " color: %2;"
+                    " font-weight: bold;"
+                    " border: 2px solid #555;"
+                    " border-radius: 6px;"
+                    " padding: 8px 12px;"
+                    "}"
+                    "QPushButton:hover {"
+                    " background-color: %3;"
+                    " border: 2px solid #777;"
+                    "}"
+                    "QPushButton:pressed {"
+                    " background-color: %4;"
+                    "}"
+                ).arg(current.name())
+                 .arg(current.lightness() > 130 ? "black" : "white")
+                 .arg(QColor(current.name()).lighter(115).name())   // Hover
+                 .arg(QColor(current.name()).darker(130).name()));
 
-        connect(btn, &QPushButton::clicked, this, [this, btn, key, label]() {
-            QColor originalColor = currentTheme.value(key);   // Saves original in case user reverts
+        connect(btn, &QPushButton::clicked, this, [this, btn, key, label, defaultColor]() mutable {
+            // Priority: Most recent color > Currently saved color > Default
+            QColor initialColor = currentTheme.value(key, defaultColor);
+            if (!m_recentColors.isEmpty()) {
+                initialColor = m_recentColors.first();
+            }
 
-            QColorDialog dlg(currentTheme.value(key), this);
+            QColorDialog dlg(initialColor, this);
             dlg.setWindowTitle("Choose " + label);
             dlg.setOption(QColorDialog::DontUseNativeDialog, true);
+            dlg.setOption(QColorDialog::ShowAlphaChannel, false);
+
+            // Populate recent colors panel
+            for (int i = 0; i < m_recentColors.size() && i < 16; ++i) {
+                QColorDialog::setCustomColor(i, m_recentColors[i]);
+            }
+
+            // Pre populates HTML input to start with '#'
+            if (QLineEdit *hexEdit = dlg.findChild<QLineEdit*>()) {
+               if (hexEdit->text().isEmpty() || !hexEdit->text().startsWith('#')) {
+                  hexEdit->setText("#");
+                  hexEdit->setCursorPosition(1);
+               }
+            }
+
+            // Makes preview square show most recent color
+            QTimer::singleShot(50, &dlg, [&]() {
+                            dlg.setCurrentColor(initialColor);
+                        });
 
             if (dlg.exec() == QDialog::Accepted) {
                 QColor chosen = dlg.currentColor();
                 if (chosen.isValid()) {
                     currentTheme[key] = chosen;
-                    applyTheme();                    // Live preview on OK
+
+                    // Update recent colors
+                    m_recentColors.removeAll(chosen);
+                    m_recentColors.prepend(chosen);
+                    if (m_recentColors.size() > 16)
+                        m_recentColors.removeLast();
+
+                    applyTheme();  // Live preview
+
+                    // Update button
+                    btn->setStyleSheet(QString(
+                        "background-color: %1; "
+                        "color: %2; "
+                        "font-weight: bold; "
+                        "border: 2px solid #555; "
+                        "border-radius: 6px;"
+                    ).arg(chosen.name())
+                     .arg(chosen.lightness() > 130 ? "black" : "white"));
                 }
             }
-
-            // Update button appearance
-            QColor updated = currentTheme.value(key);
-            btn->setStyleSheet(QString(
-                "background-color: %1; "
-                "color: %2; "
-                "font-weight: bold; "
-                "border: 2px solid #555; "
-                "border-radius: 6px;"
-            ).arg(updated.name())
-             .arg(updated.lightness() > 130 ? "black" : "white"));
         });
 
         mainLayout->addWidget(btn);
@@ -2420,16 +2487,36 @@ void MainWindow::showSettingsDialog()
 
     QHBoxLayout *fontLayout = new QHBoxLayout();
     QLabel *fontLabel = new QLabel("Application Font:");
+
     QFontComboBox *fontCombo = new QFontComboBox();
     fontCombo->setCurrentFont(qApp->font());
-    fontCombo->setMinimumHeight(32);
+    fontCombo->setMinimumHeight(36);
     fontCombo->setFocusPolicy(Qt::StrongFocus);
+    fontCombo->setEditable(false);
+    fontCombo->setMaxVisibleItems(20);
+
+    // Save original font for Cancel revert
+    QFont originalFont = qApp->font();
+
+    // Live preview when user changes font
+    connect(fontCombo, &QFontComboBox::currentFontChanged,
+            this, [this](const QFont &newFont) {
+                qApp->setFont(newFont);
+
+                // Force all widgets to update immediately
+                QWidgetList widgets = QApplication::allWidgets();
+                for (QWidget *w : widgets) {
+                    w->setFont(newFont);
+                    w->update();
+                }
+            });
+
     fontLayout->addWidget(fontLabel);
     fontLayout->addWidget(fontCombo, 1);
     mainLayout->addLayout(fontLayout);
 
     // === Presets ===
-    mainLayout->addSpacing(10);
+    mainLayout->addSpacing(15);
     mainLayout->addWidget(new QLabel("<b>Quick Presets</b>"));
 
     // Define all presets
@@ -2444,36 +2531,42 @@ void MainWindow::showSettingsDialog()
         QString border;
     };
 
+    QList<Preset> colorPresets = {
+        {"Blueberry", "#23234f", "#404076", "#859bff", "#d4d4d4", "#44447d", "#505094", "#5e5ea6"},
+        {"Ubuntu",    "#300a24", "#5a123a", "#279693", "#fceeff", "#440d2d", "#390b26", "#1f0619"},
+        {"Shark",     "#0f2931", "#15595d", "#ce7d13", "#c1fff1", "#063a3a", "#074242", "#0b1c22"}
+    };
+
     QList<Preset> darkPresets = {
-        { "Default",    "#111111", "#222222", "#9d65d6", "#bebebe", "#262626", "#2d2d2d", "#3b3b3b" },
+        { "Default", "#111111", "#222222", "#9d65d6", "#bebebe", "#262626", "#2d2d2d", "#3b3b3b" },
         { "Pure Black", "#000000", "#212121", "#1271ff", "#c4c4c4", "#111111", "#222222", "#6d6d6d" },
-        { "Mars",       "#241e1d", "#342a26", "#ff5b24", "#c4bbbb", "#39302c", "#312926", "#1a1616" },
-        { "Slate",      "#343434", "#3e3e3e", "#a0b3cf", "#c4c4c4", "#3e3e3e", "#454545", "#787878" },
-        { "Royal",      "#000c15", "#011627", "#b07522", "#fffbdc", "#011321", "#01101c", "#011c2d" },
-        { "Nebula",     "#11081a", "#1a1125", "#8d003f", "#bfb1a6", "#11081a", "#1a1125", "#1a1125" },
+        { "Mars", "#241e1d", "#342a26", "#ff5b24", "#c4bbbb", "#39302c", "#312926", "#1a1616" },
+        { "Slate", "#343434", "#3e3e3e", "#a0b3cf", "#c4c4c4", "#3e3e3e", "#454545", "#787878" },
+        { "Royal", "#000c15", "#011627", "#b07522", "#fffbdc", "#011321", "#01101c", "#011c2d" },
+        { "Nebula", "#11081a", "#1a1125", "#8d003f", "#bfb1a6", "#11081a", "#1a1125", "#1a1125" },
     };
 
     QList<Preset> lightPresets = {
-        { "Default",        "#ffffff", "#f5f5f5", "#9d65d6", "#2b2b2b", "#ffffff", "#f5f5f5", "#c1c1c1" },
+        { "Default", "#ffffff", "#f5f5f5", "#9d65d6", "#2b2b2b", "#ffffff", "#f5f5f5", "#c1c1c1" },
         { "Cherry Blossom", "#fff5f5", "#f4b4cc", "#de8bb1", "#8b546b", "#fceaf1", "#f8d7e7", "#d681a2" },
-        { "Orange Slices",  "#fffbdc", "#ffd3a5", "#f57b35", "#943100", "#ffd3a5", "#ffaa6e", "#f39b69" },
-        { "Matcha",         "#f0f0d8", "#d6eb98", "#809a4d", "#604848", "#dcf19c", "#c4d872", "#87a251" },
-        { "Coastal Sands",  "#edddc4", "#e3cda6", "#77b0a4", "#554040", "#edddc4", "#e3cda6", "#b9a587" },
-        { "Frost",          "#f3fcff", "#e9f2f5", "#a3b3bf", "#71767e", "#f3fcff", "#e9f2f5", "#b1b9c5" },
+        { "Orange Slices", "#fffbdc", "#ffd3a5", "#f57b35", "#943100", "#ffd3a5", "#ffaa6e", "#f39b69" },
+        { "Matcha", "#f0f0d8", "#d6eb98", "#809a4d", "#604848", "#dcf19c", "#c4d872", "#87a251" },
+        { "Coastal Sands", "#edddc4", "#e3cda6", "#77b0a4", "#554040", "#edddc4", "#e3cda6", "#b9a587" },
+        { "Frost", "#f3fcff", "#e9f2f5", "#a3b3bf", "#71767e", "#f3fcff", "#e9f2f5", "#b1b9c5" },
     };
 
     auto applyPreset = [&](const Preset &p, QDialog *dlg) {
-        currentTheme["background"]    = QColor(p.background);
+        currentTheme["background"] = QColor(p.background);
         currentTheme["sectionHeader"] = QColor(p.sectionHeader);
-        currentTheme["accent"]        = QColor(p.accent);
-        currentTheme["text"]          = QColor(p.text);
-        currentTheme["panel"]         = QColor(p.panel);
-        currentTheme["tableAlt"]      = QColor(p.tableAlt);
-        currentTheme["border"]        = QColor(p.border);
+        currentTheme["accent"] = QColor(p.accent);
+        currentTheme["text"] = QColor(p.text);
+        currentTheme["panel"] = QColor(p.panel);
+        currentTheme["tableAlt"] = QColor(p.tableAlt);
+        currentTheme["border"] = QColor(p.border);
         dlg->accept();
         QTimer::singleShot(0, this, [this]() {
-                    updateSidebarHighlight();
-                });
+            updateSidebarHighlight();
+        });
     };
 
     // Helper to build a preset dropdown button
@@ -2483,18 +2576,28 @@ void MainWindow::showSettingsDialog()
                                const QString &btnText,
                                const QString &btnBorder) -> QPushButton*
     {
-        QPushButton *btn = new QPushButton(label + "  ▾");
+        QPushButton *btn = new QPushButton(label + " ▾");
         btn->setMinimumHeight(44);
         btn->setStyleSheet(QString(
-            "QPushButton {"
-            "  background-color: %1;"
-            "  color: %2;"
-            "  font-weight: bold;"
-            "  border: 2px solid %3;"
-            "  border-radius: 6px;"
-            "}"
-            "QPushButton:hover { opacity: 0.85; }"
-        ).arg(btnBg).arg(btnText).arg(btnBorder));
+                    "QPushButton {"
+                    " background-color: %1;"
+                    " color: %2;"
+                    " font-weight: bold;"
+                    " border: 2px solid %3;"
+                    " border-radius: 6px;"
+                    " padding: 8px 12px;"
+                    "}"
+                    "QPushButton:hover {"
+                    " background-color: %4;"
+                    "}"
+                    "QPushButton:pressed {"
+                    " background-color: %5;"
+                    "}"
+                ).arg(btnBg)
+                 .arg(btnText)
+                 .arg(btnBorder)
+                 .arg(QColor(btnBg).lighter(115).name())
+                 .arg(QColor(btnBg).darker(130).name()));
 
         connect(btn, &QPushButton::clicked, this, [this, btn, presets, &dialog, applyPreset]() {
             QMenu menu(btn);
@@ -2509,12 +2612,12 @@ void MainWindow::showSettingsDialog()
             }
             menu.exec(btn->mapToGlobal(btn->rect().topLeft()));
         });
-
         return btn;
     };
 
     QHBoxLayout *presetLayout = new QHBoxLayout();
 
+    // Light and Dark buttons
     QPushButton *darkBtn = makePresetMenu(
         "Dark Themes", darkPresets,
         "#2a2a2a", "#e0e0e0", "#555555"
@@ -2524,8 +2627,16 @@ void MainWindow::showSettingsDialog()
         "#f0f0f0", "#1e2937", "#d0d0d0"
     );
 
-    presetLayout->addWidget(darkBtn);
+    QPushButton *colorBtn = makePresetMenu(
+         "Color Themes", colorPresets,
+         "#3b82f6", "#ffffff", "#2563eb"
+    );
+
+
     presetLayout->addWidget(lightBtn);
+    presetLayout->addWidget(darkBtn);
+    presetLayout->addWidget(colorBtn);
+
     mainLayout->addLayout(presetLayout);
 
     // === OK / Cancel ===
@@ -2539,8 +2650,11 @@ void MainWindow::showSettingsDialog()
 
     if (dialog.exec() == QDialog::Accepted) {
         QFont newFont = fontCombo->currentFont();
+
+        // Apply the new font globally
         qApp->setFont(newFont);
 
+        // Force all widgets to update with the new font
         QWidgetList widgets = QApplication::allWidgets();
         for (QWidget *w : widgets) {
             w->setFont(newFont);
@@ -2552,8 +2666,18 @@ void MainWindow::showSettingsDialog()
         updateSidebarHighlight();
     }
     else {
-        // User pressed Cancel → Revert everything
-        currentTheme = originalTheme;
+        // User pressed Cancel → Revert everything (colors + font)
+        currentTheme = originalTheme;     // Revert colors
+
+        // Revert font to what it was before opening Settings
+        qApp->setFont(originalFont);
+
+        QWidgetList widgets = QApplication::allWidgets();
+        for (QWidget *w : widgets) {
+            w->setFont(originalFont);
+            w->update();
+        }
+
         applyTheme();
         updateSidebarHighlight();
     }

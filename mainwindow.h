@@ -174,6 +174,7 @@ private:
     void setupProcessTable();
     void rebuildProcessTableColumns();
     void populateProcessTable(const std::vector<ProcessRow> &rows);
+    QList<QColor> m_recentColors;
 
     QString columnTitle(ProcessColumn column) const;
     QString columnText(const ProcessRow &row, ProcessColumn column) const;
