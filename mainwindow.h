@@ -74,6 +74,27 @@ enum class HistoryColumn
     LastSeen
 };
 
+enum class RawExportColumn
+    {
+        Timestamp,
+        PID,
+        StartTimeTicks,
+        Name,
+        State,
+        CpuPercent,
+        CpuTimeSec,
+        Threads,
+        RssMB,
+        VszMB,
+        SharedMB,
+        ReadBps,
+        WriteBps,
+        TotalRead,
+        TotalWrite,
+        Priority,
+        Nice
+    };
+
 class StatsWorker : public QObject
 {
     Q_OBJECT
@@ -162,6 +183,7 @@ private:
     QMap<QString, QColor> currentTheme;
 
     QString m_savedFontFamily;
+    
     int m_savedFontSize;
     void applySavedFont();
     void showSettingsDialog();
@@ -188,8 +210,14 @@ private:
     std::vector<ProcessRow> applySorting(const std::vector<ProcessRow> &rows) const;
 
     void exportToCSV(const std::string& filename);
-    void exportSelectedHistoryToCSV(const std::string& filename);
-    
+    void exportSelectedHistoryToCSV(const std::string& filename,
+                                const std::vector<RawExportColumn> &columns);
+
+    void exportAllHistoryToCSV(const std::string& filename,
+                               const std::vector<RawExportColumn> &columns);
+     
+    void exportSummaryHistoryToCSV(const std::string& filename);
+                               
     void startRecordingSession();
     void stopRecordingSession();
     const RecordingSession* selectedRecordingSession() const;
@@ -283,6 +311,13 @@ private:
 
     bool networkTrafficExpanded;
     bool networkInterfacesExpanded;
+
+    std::vector<RawExportColumn> chooseRawExportColumns();
+    void writeRawExportHeader(std::ofstream &out, const std::vector<RawExportColumn> &columns);
+    void writeRawExportRow(std::ofstream &out,
+                           const std::vector<RawExportColumn> &columns,
+                           const std::string &timestamp,
+                           const ProcessRow &row);
 };
 
 #endif

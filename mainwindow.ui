@@ -1124,13 +1124,30 @@
                         </widget>
                       </item>
 
+                      <item>
+                       <widget class="QPushButton" name="historyExportButton">
+                        <property name="text">
+                          <string>Export Selected CSV</string>
+                        </property>
+                       </widget>
+                      </item>
+                        
                         <item>
-                         <widget class="QPushButton" name="historyExportButton">
+                         <widget class="QPushButton" name="historyExportAllButton">
                           <property name="text">
-                           <string>Export History CSV</string>
+                           <string>Export All CSV</string>
                           </property>
                          </widget>
                         </item>
+                        
+                        <item>
+                         <widget class="QPushButton" name="historyExportSummaryButton">
+                          <property name="text">
+                           <string>Export Summary CSV</string>
+                          </property>
+                         </widget>
+                        </item>
+                        
                       </layout>
                      </widget>
                     </item>

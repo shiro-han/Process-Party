@@ -37,6 +37,11 @@
 #include <algorithm>
 #include <fstream>
 
+#include <iomanip>
+#include <sstream>
+
+#include <QCheckBox>
+
 static const std::vector<ProcessColumn> columnOrder = {
     ProcessColumn::Name,
     ProcessColumn::PID,
@@ -116,6 +121,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     loadThemeSettings();
     applyTheme();
+    loadRecordingSettings();
 
 
     ui->scrollContentLayout->setAlignment(Qt::AlignTop);
@@ -176,17 +182,97 @@ MainWindow::MainWindow(QWidget *parent)
         this, &MainWindow::onHistoryHeaderClicked);
 
     connect(ui->historyExportButton, &QPushButton::clicked, this, [this]() {
+        const RecordingSession* session = selectedRecordingSession();
+        if (!session || session->history.empty())
+        {
+            QMessageBox::information(
+                this,
+                "Export Selected CSV",
+                "No history data available to export."
+            );
+            return;
+        }
+
+        int selectedRow = ui->historyTable->currentRow();
+        if (selectedRow < 0)
+        {
+            QMessageBox::information(
+                this,
+                "Export Selected CSV",
+                "No process selected.\n\nSelect a process to export, or use 'Export All CSV' to export the entire session."
+            );
+            return;
+        }
+        
+        std::vector<RawExportColumn> columns = chooseRawExportColumns();
+        if (columns.empty())
+            return;
+
         QString fileName = QFileDialog::getSaveFileName(
             this,
-            "Export History CSV",
-            QDir::homePath() + "/history_export.csv",
+            "Export Selected History CSV",
+            QDir::homePath() + "/history_selected_export.csv",
             "CSV Files (*.csv)"
         );
 
         if (fileName.isEmpty())
             return;
 
-        exportSelectedHistoryToCSV(fileName.toStdString());
+        exportSelectedHistoryToCSV(fileName.toStdString(), columns);
+    });
+    
+    connect(ui->historyExportAllButton, &QPushButton::clicked, this, [this]() {
+      const RecordingSession* session = selectedRecordingSession();
+      if (!session || session->history.empty())
+      {
+          QMessageBox::information(
+              this,
+              "Export All CSV",
+              "No history data available to export."
+          );
+          return;
+      }
+      
+      std::vector<RawExportColumn> columns = chooseRawExportColumns();
+      if (columns.empty())
+          return;
+
+      QString fileName = QFileDialog::getSaveFileName(
+          this,
+          "Export All History CSV",
+          QDir::homePath() + "/history_all_export.csv",
+          "CSV Files (*.csv)"
+      );
+
+      if (fileName.isEmpty())
+          return;
+
+      exportAllHistoryToCSV(fileName.toStdString(), columns);
+    });
+    
+    connect(ui->historyExportSummaryButton, &QPushButton::clicked, this, [this]() {
+        const RecordingSession* session = selectedRecordingSession();
+        if (!session || session->history.empty())
+        {
+            QMessageBox::information(
+                this,
+                "Export Summary CSV",
+                "No history data available to export."
+            );
+            return;
+        }
+
+        QString fileName = QFileDialog::getSaveFileName(
+            this,
+            "Export Summary CSV",
+            QDir::homePath() + "/history_summary_export.csv",
+            "CSV Files (*.csv)"
+        );
+
+        if (fileName.isEmpty())
+            return;
+
+        exportSummaryHistoryToCSV(fileName.toStdString());
     });
     
     connect(ui->historyStartButton, &QPushButton::clicked,
@@ -226,13 +312,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->settingsButton, &QPushButton::clicked, this, &MainWindow::showSettingsDialog);
 
-    // Move worker onto background thread
     statsWorker->moveToThread(workerThread);
 
-    // Timer fires on main thread → triggers worker on background thread
     connect(timer, &QTimer::timeout, this, &MainWindow::requestStats);
 
-    // Wire worker result back to main thread
     connect(this, &MainWindow::requestStats, statsWorker, &StatsWorker::run);
     connect(statsWorker, &StatsWorker::result, this, &MainWindow::onStatsResult);
     connect(workerThread, &QThread::finished, statsWorker, &QObject::deleteLater);
@@ -244,13 +327,10 @@ MainWindow::MainWindow(QWidget *parent)
         startRecordingSession();
     }
     
-    // Default interval: 1000ms (1 second)
     timer->start(1000);
     
-    // Kick off first sample immediately without waiting for first tick
     emit requestStats();
 
-    // Force fix process table header
     QTimer::singleShot(50, this, [this]() {
         QColor sectionHeader = currentTheme.value("sectionHeader");
         QColor textColor     = currentTheme.value("text");
@@ -2709,9 +2789,13 @@ void MainWindow::exportToCSV(const std::string& filename)
     {
         auto t = std::chrono::system_clock::to_time_t(time);
 
+        std::tm tm = *std::localtime(&t);
+        std::ostringstream timeStream;
+        timeStream << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
         for (const auto& row : rows)
         {
-            out << t << ","
+            out << timeStream.str() << ","
                 << row.pid << ","
                 << row.startTimeTicks << ","
                 << row.name << ","
@@ -2733,13 +2817,17 @@ void MainWindow::exportToCSV(const std::string& filename)
     }
 }
 
-void MainWindow::exportSelectedHistoryToCSV(const std::string& filename)
+void MainWindow::exportSelectedHistoryToCSV(const std::string& filename,
+                                            const std::vector<RawExportColumn> &columns)
 {
     int selectedRow = ui->historyTable->currentRow();
     if (selectedRow < 0)
     {
-        QMessageBox::information(this, "Export History",
-                                 "Please select a process session in the History table first.");
+        QMessageBox::information(
+            this,
+            "Export Selected CSV",
+            "No process selected.\n\nSelect a process to export, or use 'Export All CSV' to export the entire session."
+        );
         return;
     }
 
@@ -2777,9 +2865,7 @@ void MainWindow::exportSelectedHistoryToCSV(const std::string& filename)
         return;
     }
 
-    out << "timestamp,pid,startTimeTicks,name,state,cpuPercent,cpuTimeSec,threads,"
-           "rssMB,vszMB,sharedMB,readBps,writeBps,totalRead,totalWrite,"
-           "priority,nice\n";
+    writeRawExportHeader(out, columns);
 
     int writtenRows = 0;
 
@@ -2787,29 +2873,16 @@ void MainWindow::exportSelectedHistoryToCSV(const std::string& filename)
     {
         std::time_t t = std::chrono::system_clock::to_time_t(entry.first);
 
+        std::tm tm = *std::localtime(&t);
+        std::ostringstream timeStream;
+        timeStream << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
         for (const auto &row : entry.second)
         {
             if (row.pid != selectedPid || row.startTimeTicks != selectedStartTimeTicks)
                 continue;
 
-            out << t << ","
-                << row.pid << ","
-                << row.startTimeTicks << ","
-                << row.name << ","
-                << row.state << ","
-                << row.cpuPercent << ","
-                << row.cpuTimeSec << ","
-                << row.threads << ","
-                << row.rssMB << ","
-                << row.vszMB << ","
-                << row.sharedMB << ","
-                << row.readBytesPerSec << ","
-                << row.writeBytesPerSec << ","
-                << row.totalReadBytes << ","
-                << row.totalWriteBytes << ","
-                << row.priority << ","
-                << row.niceValue
-                << "\n";
+            writeRawExportRow(out, columns, timeStream.str(), row);
 
             ++writtenRows;
         }
@@ -2823,6 +2896,349 @@ void MainWindow::exportSelectedHistoryToCSV(const std::string& filename)
             .arg(selectedPid)
             .arg(QString::fromStdString(filename))
     );
+}
+
+void MainWindow::exportAllHistoryToCSV(const std::string& filename,
+                                       const std::vector<RawExportColumn> &columns)
+{
+    const RecordingSession* session = selectedRecordingSession();
+    if (!session)
+    {
+        QMessageBox::warning(this, "Export History",
+                             "No recording session is currently selected.");
+        return;
+    }
+
+    std::ofstream out(filename);
+    if (!out)
+    {
+        QMessageBox::critical(this, "Export History",
+                              "Failed to open the export file for writing.");
+        return;
+    }
+
+    writeRawExportHeader(out, columns);
+
+    int writtenRows = 0;
+
+    for (const auto &entry : session->history)
+    {
+        std::time_t t = std::chrono::system_clock::to_time_t(entry.first);
+
+        std::tm tm = *std::localtime(&t);
+        std::ostringstream timeStream;
+        timeStream << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+        for (const auto &row : entry.second)
+        {
+            writeRawExportRow(out, columns, timeStream.str(), row);
+
+            ++writtenRows;
+        }
+    }
+
+    QMessageBox::information(
+        this,
+        "Export History",
+        QString("Exported %1 rows from all processes to:\n%2")
+            .arg(writtenRows)
+            .arg(QString::fromStdString(filename))
+    );
+}
+
+void MainWindow::exportSummaryHistoryToCSV(const std::string& filename)
+{
+    const RecordingSession* session = selectedRecordingSession();
+    if (!session)
+    {
+        QMessageBox::warning(this, "Export Summary",
+                             "No recording session is currently selected.");
+        return;
+    }
+
+    std::ofstream out(filename);
+    if (!out)
+    {
+        QMessageBox::critical(this, "Export Summary",
+                              "Failed to open the export file for writing.");
+        return;
+    }
+
+    struct SummaryRow
+    {
+        int pid = 0;
+        long long startTimeTicks = 0;
+        std::string name;
+        QString firstSeen;
+        QString lastSeen;
+        int sampleCount = 0;
+        double cpuSum = 0.0;
+        double cpuPeak = 0.0;
+        double rssSum = 0.0;
+        bool running = false;
+    };
+
+    std::unordered_map<std::string, SummaryRow> summaries;
+
+    for (const auto &entry : session->history)
+    {
+        std::time_t t = std::chrono::system_clock::to_time_t(entry.first);
+
+        std::tm tm = *std::localtime(&t);
+        std::ostringstream timeStream;
+        timeStream << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+        QString timestamp = QString::fromStdString(timeStream.str());
+
+        for (const auto &row : entry.second)
+        {
+            std::string key = std::to_string(row.pid) + "_" + std::to_string(row.startTimeTicks);
+            auto &summary = summaries[key];
+
+            if (summary.sampleCount == 0)
+            {
+                summary.pid = row.pid;
+                summary.startTimeTicks = row.startTimeTicks;
+                summary.name = row.name;
+                summary.firstSeen = timestamp;
+                summary.cpuPeak = row.cpuPercent;
+            }
+
+            summary.lastSeen = timestamp;
+            summary.sampleCount++;
+            summary.cpuSum += row.cpuPercent;
+            summary.rssSum += row.rssMB;
+
+            if (row.cpuPercent > summary.cpuPeak)
+                summary.cpuPeak = row.cpuPercent;
+
+            summary.name = row.name;
+        }
+    }
+
+    if (!session->history.empty())
+    {
+        const auto &latestSnapshot = session->history.back().second;
+
+        for (const auto &row : latestSnapshot)
+        {
+            std::string key = std::to_string(row.pid) + "_" + std::to_string(row.startTimeTicks);
+            auto it = summaries.find(key);
+
+            if (it != summaries.end())
+                it->second.running = true;
+        }
+    }
+
+    std::vector<SummaryRow> rows;
+    rows.reserve(summaries.size());
+
+    for (const auto &pair : summaries)
+        rows.push_back(pair.second);
+
+    std::sort(rows.begin(), rows.end(),
+              [](const SummaryRow &a, const SummaryRow &b)
+              {
+                  return a.lastSeen > b.lastSeen;
+              });
+
+    out << "name,pid,startTimeTicks,samples,status,avgCpuPercent,peakCpuPercent,avgRssMB,firstSeen,lastSeen\n";
+
+    int writtenRows = 0;
+
+    for (const auto &summary : rows)
+    {
+        double avgCpu = summary.sampleCount > 0
+            ? summary.cpuSum / static_cast<double>(summary.sampleCount)
+            : 0.0;
+
+        double avgRss = summary.sampleCount > 0
+            ? summary.rssSum / static_cast<double>(summary.sampleCount)
+            : 0.0;
+
+        out << summary.name << ","
+            << summary.pid << ","
+            << summary.startTimeTicks << ","
+            << summary.sampleCount << ","
+            << (summary.running ? "Running" : "Exited") << ","
+            << avgCpu << ","
+            << summary.cpuPeak << ","
+            << avgRss << ","
+            << summary.firstSeen.toStdString() << ","
+            << summary.lastSeen.toStdString()
+            << "\n";
+
+        ++writtenRows;
+    }
+
+    QMessageBox::information(
+        this,
+        "Export Summary",
+        QString("Exported %1 summary rows to:\n%2")
+            .arg(writtenRows)
+            .arg(QString::fromStdString(filename))
+    );
+}
+
+std::vector<RawExportColumn> MainWindow::chooseRawExportColumns()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Select Export Columns");
+    dialog.setMinimumWidth(320);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+
+    struct ColumnOption
+    {
+        RawExportColumn column;
+        QString label;
+    };
+
+    std::vector<ColumnOption> options = {
+        {RawExportColumn::Timestamp, "Timestamp"},
+        {RawExportColumn::PID, "PID"},
+        {RawExportColumn::StartTimeTicks, "Start Time Ticks"},
+        {RawExportColumn::Name, "Name"},
+        {RawExportColumn::State, "State"},
+        {RawExportColumn::CpuPercent, "CPU %"},
+        {RawExportColumn::CpuTimeSec, "CPU Time"},
+        {RawExportColumn::Threads, "Threads"},
+        {RawExportColumn::RssMB, "RSS MB"},
+        {RawExportColumn::VszMB, "VSZ MB"},
+        {RawExportColumn::SharedMB, "Shared MB"},
+        {RawExportColumn::ReadBps, "Read/s"},
+        {RawExportColumn::WriteBps, "Write/s"},
+        {RawExportColumn::TotalRead, "Total Read"},
+        {RawExportColumn::TotalWrite, "Total Write"},
+        {RawExportColumn::Priority, "Priority"},
+        {RawExportColumn::Nice, "Nice"}
+    };
+
+    std::vector<QCheckBox*> checkBoxes;
+
+    for (const ColumnOption &option : options)
+    {
+        QCheckBox *checkBox = new QCheckBox(option.label, &dialog);
+        checkBox->setChecked(true);
+        layout->addWidget(checkBox);
+        checkBoxes.push_back(checkBox);
+    }
+
+    QHBoxLayout *quickButtonsLayout = new QHBoxLayout();
+
+    QPushButton *selectAllButton = new QPushButton("Select All", &dialog);
+    QPushButton *deselectAllButton = new QPushButton("Deselect All", &dialog);
+
+    quickButtonsLayout->addWidget(selectAllButton);
+    quickButtonsLayout->addWidget(deselectAllButton);
+    layout->addLayout(quickButtonsLayout);
+
+    connect(selectAllButton, &QPushButton::clicked, this, [&checkBoxes]() {
+        for (QCheckBox *checkBox : checkBoxes)
+            checkBox->setChecked(true);
+    });
+
+    connect(deselectAllButton, &QPushButton::clicked, this, [&checkBoxes]() {
+        for (QCheckBox *checkBox : checkBoxes)
+            checkBox->setChecked(false);
+    });
+
+    QDialogButtonBox *buttonBox = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+        &dialog
+    );
+
+    layout->addWidget(buttonBox);
+
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return {};
+
+    std::vector<RawExportColumn> selectedColumns;
+
+    for (int i = 0; i < static_cast<int>(options.size()); ++i)
+    {
+        if (checkBoxes[i]->isChecked())
+            selectedColumns.push_back(options[i].column);
+    }
+
+    if (selectedColumns.empty())
+    {
+        QMessageBox::warning(this, "Export CSV",
+                             "Please select at least one column to export.");
+    }
+
+    return selectedColumns;
+}
+
+void MainWindow::writeRawExportHeader(std::ofstream &out,
+                                      const std::vector<RawExportColumn> &columns)
+{
+    for (int i = 0; i < static_cast<int>(columns.size()); ++i)
+    {
+        if (i > 0)
+            out << ",";
+
+        switch (columns[i])
+        {
+        case RawExportColumn::Timestamp: out << "timestamp"; break;
+        case RawExportColumn::PID: out << "pid"; break;
+        case RawExportColumn::StartTimeTicks: out << "startTimeTicks"; break;
+        case RawExportColumn::Name: out << "name"; break;
+        case RawExportColumn::State: out << "state"; break;
+        case RawExportColumn::CpuPercent: out << "cpuPercent"; break;
+        case RawExportColumn::CpuTimeSec: out << "cpuTimeSec"; break;
+        case RawExportColumn::Threads: out << "threads"; break;
+        case RawExportColumn::RssMB: out << "rssMB"; break;
+        case RawExportColumn::VszMB: out << "vszMB"; break;
+        case RawExportColumn::SharedMB: out << "sharedMB"; break;
+        case RawExportColumn::ReadBps: out << "readBps"; break;
+        case RawExportColumn::WriteBps: out << "writeBps"; break;
+        case RawExportColumn::TotalRead: out << "totalRead"; break;
+        case RawExportColumn::TotalWrite: out << "totalWrite"; break;
+        case RawExportColumn::Priority: out << "priority"; break;
+        case RawExportColumn::Nice: out << "nice"; break;
+        }
+    }
+
+    out << "\n";
+}
+
+void MainWindow::writeRawExportRow(std::ofstream &out,
+                                   const std::vector<RawExportColumn> &columns,
+                                   const std::string &timestamp,
+                                   const ProcessRow &row)
+{
+    for (int i = 0; i < static_cast<int>(columns.size()); ++i)
+    {
+        if (i > 0)
+            out << ",";
+
+        switch (columns[i])
+        {
+        case RawExportColumn::Timestamp: out << timestamp; break;
+        case RawExportColumn::PID: out << row.pid; break;
+        case RawExportColumn::StartTimeTicks: out << row.startTimeTicks; break;
+        case RawExportColumn::Name: out << row.name; break;
+        case RawExportColumn::State: out << row.state; break;
+        case RawExportColumn::CpuPercent: out << row.cpuPercent; break;
+        case RawExportColumn::CpuTimeSec: out << row.cpuTimeSec; break;
+        case RawExportColumn::Threads: out << row.threads; break;
+        case RawExportColumn::RssMB: out << row.rssMB; break;
+        case RawExportColumn::VszMB: out << row.vszMB; break;
+        case RawExportColumn::SharedMB: out << row.sharedMB; break;
+        case RawExportColumn::ReadBps: out << row.readBytesPerSec; break;
+        case RawExportColumn::WriteBps: out << row.writeBytesPerSec; break;
+        case RawExportColumn::TotalRead: out << row.totalReadBytes; break;
+        case RawExportColumn::TotalWrite: out << row.totalWriteBytes; break;
+        case RawExportColumn::Priority: out << row.priority; break;
+        case RawExportColumn::Nice: out << row.niceValue; break;
+        }
+    }
+
+    out << "\n";
 }
 
 void MainWindow::refreshRecordingSessionComboBox()
@@ -2866,17 +3282,23 @@ void MainWindow::onRecordingSessionChanged(int index)
 
 void MainWindow::loadRecordingSettings()
 {
-    QSettings settings("ProcessParty", "Recording");
+    QSettings settings("ProcessParty", "SystemMonitorDemo");
+
     recordOnStartup = settings.value("recordOnStartup", false).toBool();
 
     if (ui->historyRecordOnStartupCheckBox)
+    {
+        ui->historyRecordOnStartupCheckBox->blockSignals(true);
         ui->historyRecordOnStartupCheckBox->setChecked(recordOnStartup);
+        ui->historyRecordOnStartupCheckBox->blockSignals(false);
+    }
 }
 
 void MainWindow::saveRecordingSettings()
 {
-    QSettings settings("ProcessParty", "Recording");
+    QSettings settings("ProcessParty", "SystemMonitorDemo");
     settings.setValue("recordOnStartup", recordOnStartup);
+    settings.sync();
 }
 
 void MainWindow::onRecordOnStartupToggled(bool checked)
