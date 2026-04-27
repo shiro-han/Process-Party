@@ -27,6 +27,7 @@
 #include <QSpinBox>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QWindow>
 
 #include <QFontComboBox>
 #include <QFileDialog>
@@ -141,6 +142,10 @@ MainWindow::MainWindow(QWidget *parent)
         setWindowIcon(appIcon);
         qApp->setWindowIcon(appIcon);
         QApplication::setWindowIcon(appIcon);
+
+        if (QWindow *window = windowHandle()) {
+                    window->setIcon(appIcon);
+                }
     } else {
         qWarning() << "Warning: Could not load application icon ':/capyy_2.png'";
     }
