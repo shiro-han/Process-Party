@@ -178,6 +178,8 @@ private slots:
     void toggleNetworkTrafficSection();
     void toggleNetworkInterfacesSection();
 
+    void toggleDashboardGraphsSection();
+
 private:
 
     QMap<QString, QColor> currentTheme;
@@ -192,6 +194,10 @@ private:
     void saveThemeSettings();
 
     void sendSignalToSelectedProcess(int signal);
+
+    void setProcessPriority(int pid, int niceValue);
+    void showPriorityDialogForProcess(int pid);
+
     void onSearchTextChanged(const QString &text);
     void setupProcessTable();
     void rebuildProcessTableColumns();
@@ -206,6 +212,9 @@ private:
                      const ProcessRow &b,
                      ProcessColumn column,
                      bool descending) const;
+
+    ProcessColumn defaultSortColumnForPage(MonitorPage page) const;
+    SortState defaultSortStateForPage(MonitorPage page) const;
 
     std::vector<ProcessRow> applySorting(const std::vector<ProcessRow> &rows) const;
 
@@ -299,6 +308,7 @@ private:
 
     bool sidebarExpanded;
     bool cpuUsageExpanded;
+    bool dashboardGraphsExpanded;
     bool cpuPerCoreExpanded;
 
     bool memoryUsageExpanded;

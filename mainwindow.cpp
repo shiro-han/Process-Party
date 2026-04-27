@@ -42,6 +42,13 @@
 
 #include <QCheckBox>
 
+#include <sys/resource.h>
+#include <unistd.h>
+#include <QInputDialog>
+
+#include <QPropertyAnimation>
+#include <QEasingCurve>
+
 static const std::vector<ProcessColumn> columnOrder = {
     ProcessColumn::Name,
     ProcessColumn::PID,
@@ -84,6 +91,7 @@ MainWindow::MainWindow(QWidget *parent)
     diskBarGraph(nullptr),
     networkInterfacesBarGraph(nullptr),
     sidebarExpanded(true),
+    dashboardGraphsExpanded(true),
     cpuUsageExpanded(true),
     cpuPerCoreExpanded(true),
     memoryUsageExpanded(true),
@@ -99,6 +107,30 @@ MainWindow::MainWindow(QWidget *parent)
     ui->historyPageLayout->setStretch(0, 0);
     ui->historyPageLayout->setStretch(1, 0);
     ui->historyPageLayout->setStretch(2, 1);
+
+    ui->pageHeaderLayout->setSpacing(10);
+
+    ui->sidebarToggleButton->setFixedSize(36, 36);
+    QColor sectionHeader = currentTheme.value("sectionHeader", QColor("#f1f5f9"));
+    QColor textColor     = currentTheme.value("text", QColor("#1e2937"));
+
+    ui->sidebarToggleButton->setStyleSheet(QString(
+                                               "QPushButton {"
+                                               " border: none;"
+                                               " font-size: 20px;"
+                                               " padding: 4px;"
+                                               " border-radius: 6px;"
+                                               " color: %1;"
+                                               "}"
+                                               "QPushButton:hover {"
+                                               " background-color: %2;"
+                                               "}"
+                                               "QPushButton:pressed {"
+                                               " background-color: %3;"
+                                               "}"
+                                               ).arg(textColor.name())
+                                               .arg(QColor(sectionHeader).lighter(120).name())
+                                               .arg(QColor(sectionHeader).darker(110).name()));
     
     hide();
 
@@ -285,6 +317,9 @@ MainWindow::MainWindow(QWidget *parent)
         this, &MainWindow::onRecordingSessionChanged);
     connect(ui->historyRecordOnStartupCheckBox, &QCheckBox::toggled,
         this, &MainWindow::onRecordOnStartupToggled);
+
+    connect(ui->dashboardGraphsToggleButton, &QPushButton::clicked,
+            this, &MainWindow::toggleDashboardGraphsSection);
 
     connect(ui->cpuUsageToggleButton, &QPushButton::clicked,
             this, &MainWindow::toggleCpuUsageSection);
@@ -576,6 +611,26 @@ void MainWindow::setupGraphs()
     attachGraph(ui->networkGraphContainer, networkGraph);
 
     updateCurrentPageHeight();
+}
+
+void MainWindow::toggleDashboardGraphsSection()
+{
+    dashboardGraphsExpanded = !dashboardGraphsExpanded;
+
+    ui->dashboardCpuGraphContainer->setVisible(dashboardGraphsExpanded);
+    ui->dashboardMemoryGraphContainer->setVisible(dashboardGraphsExpanded);
+    ui->dashboardDiskGraphContainer->setVisible(dashboardGraphsExpanded);
+    ui->dashboardNetworkGraphContainer->setVisible(dashboardGraphsExpanded);
+
+    ui->dashboardGraphsToggleButton->setText(
+        dashboardGraphsExpanded ? "Dashboard Graphs ▼" : "Dashboard Graphs ►"
+        );
+
+    updateCurrentPageHeight();
+
+    QTimer::singleShot(0, this, [this]() {
+        updateCurrentPageHeight();
+    });
 }
 
 void MainWindow::toggleCpuUsageSection()
@@ -1292,19 +1347,15 @@ void MainWindow::updateSidebarAppearance()
 {
     bool expanded = sidebarExpanded;
 
-    ui->sidebarFrame->setMinimumWidth(expanded ? 180 : 90);
-    ui->sidebarFrame->setMaximumWidth(expanded ? 220 : 90);
-    ui->sidebarTitleLabel->setVisible(expanded);
+    ui->sidebarToggleButton->setText("☰");
 
-    ui->sidebarToggleButton->setText(expanded ? "Collapse" : ">>");
-
-    ui->dashboardButton->setText(expanded ? "Dashboard" : "Dash");
-    ui->cpuButton->setText(expanded ? "CPU" : "CPU");
-    ui->memoryButton->setText(expanded ? "Memory" : "Mem");
-    ui->diskButton->setText(expanded ? "Disk" : "Disk");
-    ui->networkButton->setText(expanded ? "Network" : "Net");
-    ui->settingsButton->setText(expanded ? "Settings" : "     ⚙");
-
+    ui->dashboardButton->setText("Dashboard");
+    ui->cpuButton->setText("CPU");
+    ui->memoryButton->setText("Memory");
+    ui->diskButton->setText("Disk");
+    ui->networkButton->setText("Network");
+    ui->historyButton->setText("History");
+    ui->settingsButton->setText("Settings");
 
     updateSidebarHighlight();
 }
@@ -1312,7 +1363,46 @@ void MainWindow::updateSidebarAppearance()
 void MainWindow::toggleSidebar()
 {
     sidebarExpanded = !sidebarExpanded;
-    updateSidebarAppearance();
+
+    const int expandedWidth = 190;
+    const int collapsedWidth = 0;
+
+    if (sidebarExpanded)
+    {
+        ui->sidebarFrame->show();
+        ui->sidebarFrame->setMinimumWidth(0);
+        ui->sidebarFrame->setMaximumWidth(0);
+    }
+
+    int startWidth = sidebarExpanded ? collapsedWidth : ui->sidebarFrame->width();
+    int endWidth = sidebarExpanded ? expandedWidth : collapsedWidth;
+
+    QPropertyAnimation *animation = new QPropertyAnimation(ui->sidebarFrame, "maximumWidth", this);
+    animation->setDuration(180);
+    animation->setStartValue(startWidth);
+    animation->setEndValue(endWidth);
+    animation->setEasingCurve(QEasingCurve::InOutCubic);
+
+    connect(animation, &QPropertyAnimation::valueChanged, this, [this](const QVariant &value) {
+        int width = value.toInt();
+        ui->sidebarFrame->setMinimumWidth(width);
+    });
+
+    connect(animation, &QPropertyAnimation::finished, this, [this]() {
+        if (!sidebarExpanded)
+        {
+            ui->sidebarFrame->hide();
+        }
+        else
+        {
+            ui->sidebarFrame->setMinimumWidth(180);
+            ui->sidebarFrame->setMaximumWidth(220);
+        }
+
+        updateSidebarHighlight();
+    });
+
+    animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 std::vector<ProcessColumn> MainWindow::defaultColumnsForPage(MonitorPage page) const
@@ -1374,6 +1464,50 @@ std::vector<ProcessColumn> MainWindow::defaultColumnsForPage(MonitorPage page) c
     }
 
     return {};
+}
+
+ProcessColumn MainWindow::defaultSortColumnForPage(MonitorPage page) const
+{
+    switch (page)
+    {
+    case MonitorPage::Dashboard:
+        return ProcessColumn::CpuPercent;
+
+    case MonitorPage::CPU:
+        return ProcessColumn::CpuPercent;
+
+    case MonitorPage::Memory:
+        return ProcessColumn::RssMB;
+
+    case MonitorPage::Disk:
+        return ProcessColumn::ReadPerSec;
+
+    case MonitorPage::Network:
+        return ProcessColumn::Threads;
+
+    case MonitorPage::History:
+        return ProcessColumn::CpuPercent;
+    }
+
+    return ProcessColumn::CpuPercent;
+}
+
+SortState MainWindow::defaultSortStateForPage(MonitorPage page) const
+{
+    switch (page)
+    {
+    case MonitorPage::Dashboard:
+    case MonitorPage::CPU:
+    case MonitorPage::Memory:
+    case MonitorPage::Disk:
+    case MonitorPage::Network:
+        return SortState::Descending;
+
+    case MonitorPage::History:
+        return SortState::Normal;
+    }
+
+    return SortState::Descending;
 }
 
 QString MainWindow::columnTitle(ProcessColumn column) const
@@ -2065,7 +2199,8 @@ void MainWindow::setCurrentPage(MonitorPage page)
 {
     currentPage = page;
     visibleColumns = defaultColumnsForPage(page);
-    currentSortState = SortState::Normal;
+    currentSortColumn = defaultSortColumnForPage(page);
+    currentSortState = defaultSortStateForPage(page);
 
     rebuildProcessTableColumns();
     populateProcessTable(applySorting(baseRows));
@@ -2176,6 +2311,8 @@ void MainWindow::showProcessContextMenu(const QPoint &pos)
     QMenu menu(this);
     QAction *terminateAction = menu.addAction("Terminate Process (SIGTERM)");
     QAction *killAction = menu.addAction("Kill Process (SIGKILL)");
+    menu.addSeparator();
+    QAction *setPriorityAction = menu.addAction("Set Priority...");
 
     connect(terminateAction, &QAction::triggered, this, [this, wasTimerActive]() {
         sendSignalToSelectedProcess(SIGTERM);
@@ -2192,6 +2329,35 @@ void MainWindow::showProcessContextMenu(const QPoint &pos)
         if (wasTimerActive && !timer->isActive()) {
             timer->start(1000);
         }
+    });
+
+    connect(setPriorityAction, &QAction::triggered, this, [this]() {
+        int row = ui->processTable->currentRow();
+        if (row < 0)
+            return;
+
+        int pidColIndex = -1;
+        for (int i = 0; i < static_cast<int>(visibleColumns.size()); ++i)
+        {
+            if (visibleColumns[i] == ProcessColumn::PID)
+            {
+                pidColIndex = i;
+                break;
+            }
+        }
+
+        if (pidColIndex < 0)
+            return;
+
+        QTableWidgetItem *pidItem = ui->processTable->item(row, pidColIndex);
+        if (!pidItem)
+            return;
+
+        int pid = pidItem->text().toInt();
+        if (pid <= 0)
+            return;
+
+        showPriorityDialogForProcess(pid);
     });
 
     menu.exec(ui->processTable->viewport()->mapToGlobal(pos));
@@ -2270,6 +2436,105 @@ void MainWindow::sendSignalToSelectedProcess(int signal)
                 .arg(pid)
                 .arg(reason));
     }
+}
+
+void MainWindow::showPriorityDialogForProcess(int pid)
+{
+    if (geteuid() != 0)
+    {
+        QMessageBox::information(
+            this,
+            "Set Priority",
+            "Priority changes require elevated permissions.\n\n"
+            "Run the monitor as root to modify process priority."
+            );
+        return;
+    }
+
+    QStringList options;
+    options << "Very Low (nice 10)"
+            << "Low (nice 5)"
+            << "Normal (nice 0)"
+            << "High (nice -5)"
+            << "Custom...";
+
+    bool ok = false;
+    QString choice = QInputDialog::getItem(
+        this,
+        "Set Priority",
+        "Choose process priority:",
+        options,
+        2,
+        false,
+        &ok
+        );
+
+    if (!ok || choice.isEmpty())
+        return;
+
+    int niceValue = 0;
+
+    if (choice.startsWith("Very Low"))
+        niceValue = 10;
+    else if (choice.startsWith("Low"))
+        niceValue = 5;
+    else if (choice.startsWith("Normal"))
+        niceValue = 0;
+    else if (choice.startsWith("High"))
+        niceValue = -5;
+    else
+    {
+        bool customOk = false;
+        niceValue = QInputDialog::getInt(
+            this,
+            "Custom Priority",
+            "Enter nice value (-20 highest priority, 19 lowest priority):",
+            0,
+            -20,
+            19,
+            1,
+            &customOk
+            );
+
+        if (!customOk)
+            return;
+    }
+
+    setProcessPriority(pid, niceValue);
+}
+
+void MainWindow::setProcessPriority(int pid, int niceValue)
+{
+    errno = 0;
+
+    if (setpriority(PRIO_PROCESS, pid, niceValue) != 0)
+    {
+        QString reason;
+
+        if (errno == EPERM)
+            reason = "Permission denied.";
+        else if (errno == ESRCH)
+            reason = "Process no longer exists.";
+        else
+            reason = QString::fromLocal8Bit(strerror(errno));
+
+        QMessageBox::warning(
+            this,
+            "Set Priority",
+            QString("Failed to set priority for PID %1.\n\n%2")
+                .arg(pid)
+                .arg(reason)
+            );
+        return;
+    }
+
+    QMessageBox::information(
+        this,
+        "Set Priority",
+        QString("Priority updated for PID %1.\nNew nice value: %2")
+            .arg(pid)
+            .arg(niceValue)
+        );
 }
 
 void MainWindow::loadThemeSettings()
@@ -2387,6 +2652,7 @@ void MainWindow::applyTheme() // Applies the saved themes to the UI
     if (ui->networkButton) ui->networkButton->setStyleSheet(buttonStyle);
     if (ui->historyButton) ui->historyButton->setStyleSheet(buttonStyle);
 
+    if (ui->dashboardGraphsToggleButton) ui->dashboardGraphsToggleButton->setStyleSheet(buttonStyle);
     if (ui->cpuUsageToggleButton) ui->cpuUsageToggleButton->setStyleSheet(buttonStyle);
     if (ui->cpuPerCoreToggleButton) ui->cpuPerCoreToggleButton->setStyleSheet(buttonStyle);
     if (ui->memoryUsageToggleButton) ui->memoryUsageToggleButton->setStyleSheet(buttonStyle);
