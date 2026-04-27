@@ -2724,15 +2724,16 @@ void MainWindow::showSettingsDialog()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("Customize Theme");
-    dialog.resize(620, 680);
+    dialog.resize(780, 720);
     dialog.setWindowModality(Qt::WindowModal);
 
     // Backup original theme in case user cancels
     QMap<QString, QColor> originalTheme = currentTheme;
 
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
-    mainLayout->setSpacing(12);
+    mainLayout->setSpacing(15);
     mainLayout->addWidget(new QLabel("<h2>Customize Theme</h2>"));
+    mainLayout->addSpacing(8);
 
     auto addColorButton = [&](const QString& label, const QString& key, QColor defaultColor) {
         QPushButton *btn = new QPushButton(label);
@@ -2819,17 +2820,8 @@ void MainWindow::showSettingsDialog()
         mainLayout->addWidget(btn);
     };
 
-    addColorButton("Background",       "background",    QColor("#f8fafc"));
-    addColorButton("Section Headers",  "sectionHeader", QColor("#f1f5f9"));
-    addColorButton("Accent Color",     "accent",        QColor("#3b82f6"));
-    addColorButton("Text Color",       "text",          QColor("#1e2937"));
-    addColorButton("Table Primary",    "panel",         QColor("#ffffff"));
-    addColorButton("Table Alternate",  "tableAlt",      QColor("#f1f5f9"));
-    addColorButton("Border Color",     "border",        QColor("#64748b"));
-
     // === Font Selection ===
-    mainLayout->addSpacing(10);
-    mainLayout->addWidget(new QLabel("<b>Font Settings</b>"));
+    mainLayout->addSpacing(15);
 
     QHBoxLayout *fontLayout = new QHBoxLayout();
     QLabel *fontLabel = new QLabel("Application Font:");
@@ -2839,7 +2831,7 @@ void MainWindow::showSettingsDialog()
     fontCombo->setMinimumHeight(36);
     fontCombo->setFocusPolicy(Qt::StrongFocus);
     fontCombo->setEditable(false);
-    fontCombo->setMaxVisibleItems(20);
+    fontCombo->setMaxVisibleItems(10);
 
     // Save original font for Cancel revert
     QFont originalFont = qApp->font();
@@ -2859,11 +2851,9 @@ void MainWindow::showSettingsDialog()
 
     fontLayout->addWidget(fontLabel);
     fontLayout->addWidget(fontCombo, 1);
-    mainLayout->addLayout(fontLayout);
 
     // === Presets ===
-    mainLayout->addSpacing(15);
-    mainLayout->addWidget(new QLabel("<b>Quick Presets</b>"));
+    mainLayout->addWidget(new QLabel("<b>Presets</b>"));
 
     // Define all presets
     struct Preset {
@@ -2880,7 +2870,10 @@ void MainWindow::showSettingsDialog()
     QList<Preset> colorPresets = {
         {"Blueberry", "#23234f", "#404076", "#859bff", "#d4d4d4", "#44447d", "#505094", "#5e5ea6"},
         {"Ubuntu",    "#300a24", "#5a123a", "#279693", "#fceeff", "#440d2d", "#390b26", "#1f0619"},
-        {"Shark",     "#0f2931", "#15595d", "#ce7d13", "#c1fff1", "#063a3a", "#074242", "#0b1c22"}
+        {"Shark",     "#0f2931", "#15595d", "#ce7d13", "#c1fff1", "#063a3a", "#074242", "#0b1c22"},
+        {"Ruby",     "#3f141c", "#631b28", "#d99575", "#fff4d3", "#3f141c", "#39121b", "#7d4c2d"},
+        {"Honeybee",     "#fdd137", "#fdbc48", "#a86234", "#682d04", "#f7b647", "#df9723", "#9d6819"},
+        {"Emerald Grove", "#072a1c", "#0a3f2f",	"#683622", "#fffedd", "#072a1c", "#062318",	"#124a36"}
     };
 
     QList<Preset> darkPresets = {
@@ -2923,7 +2916,7 @@ void MainWindow::showSettingsDialog()
                                const QString &btnBorder) -> QPushButton*
     {
         QPushButton *btn = new QPushButton(label + " ▾");
-        btn->setMinimumHeight(44);
+        btn->setMinimumHeight(54);
         btn->setStyleSheet(QString(
                     "QPushButton {"
                     " background-color: %1;"
@@ -2961,6 +2954,106 @@ void MainWindow::showSettingsDialog()
         return btn;
     };
 
+    // ================== USER THEMES ==================
+    QPushButton *userThemesBtn = new QPushButton("User Themes ▾");
+    userThemesBtn->setMinimumHeight(52);
+    userThemesBtn->setStyleSheet(
+        "QPushButton {"
+        " background-color: #8b5cf6;"
+        " color: white;"
+        " font-weight: bold;"
+        " border: 2px solid #7c3aed;"
+        " border-radius: 6px;"
+        "}"
+        "QPushButton:hover { background-color: #7c3aed; }"
+    );
+
+    connect(userThemesBtn, &QPushButton::clicked, this, [this, userThemesBtn, &dialog]() {
+        QMenu menu(userThemesBtn);
+
+        // Save Current Theme
+        QAction *saveAction = menu.addAction("Save Current Theme as...");
+        connect(saveAction, &QAction::triggered, this, [this, &dialog]() {
+            bool ok;
+            QString name = QInputDialog::getText(this, "Save Theme",
+                                                 "Enter theme name:", QLineEdit::Normal,
+                                                 "My Custom Theme", &ok);
+            if (!ok || name.isEmpty()) return;
+
+            QSettings settings("ProcessParty", "UserThemes");
+            QString baseKey = "theme_" + name;
+
+            settings.setValue(baseKey + "/accent",        currentTheme["accent"].name());
+            settings.setValue(baseKey + "/background",    currentTheme["background"].name());
+            settings.setValue(baseKey + "/sectionHeader", currentTheme["sectionHeader"].name());
+            settings.setValue(baseKey + "/text",          currentTheme["text"].name());
+            settings.setValue(baseKey + "/panel",         currentTheme["panel"].name());
+            settings.setValue(baseKey + "/tableAlt",      currentTheme["tableAlt"].name());
+            settings.setValue(baseKey + "/border",        currentTheme["border"].name());
+
+            QMessageBox::information(this, "Theme Saved",
+                                   "Theme '" + name + "' has been saved.");
+        });
+
+        menu.addSeparator();
+
+        // Load & Delete User Themes
+        QSettings settings("ProcessParty", "UserThemes");
+        QStringList keys = settings.allKeys();
+        QSet<QString> themeNames;
+
+        for (const QString &key : keys) {
+            if (key.startsWith("theme_")) {
+                QString name = key.mid(6).split('/').first();
+                if (!themeNames.contains(name)) {
+                    themeNames.insert(name);
+
+                    QMenu *subMenu = menu.addMenu(name);
+
+                    // Load action
+                    QAction *loadAction = subMenu->addAction("Load Theme");
+                    connect(loadAction, &QAction::triggered, this, [this, name, &dialog]() {
+                        QSettings s("ProcessParty", "UserThemes");
+                        QString base = "theme_" + name;
+
+                        currentTheme["accent"]        = QColor(s.value(base + "/accent").toString());
+                        currentTheme["background"]    = QColor(s.value(base + "/background").toString());
+                        currentTheme["sectionHeader"] = QColor(s.value(base + "/sectionHeader").toString());
+                        currentTheme["text"]          = QColor(s.value(base + "/text").toString());
+                        currentTheme["panel"]         = QColor(s.value(base + "/panel").toString());
+                        currentTheme["tableAlt"]      = QColor(s.value(base + "/tableAlt").toString());
+                        currentTheme["border"]        = QColor(s.value(base + "/border").toString());
+
+                        dialog.accept();
+                        applyTheme();
+                        updateSidebarHighlight();
+                    });
+
+                    // Delete action
+                    QAction *deleteAction = subMenu->addAction("Delete Theme");
+                    connect(deleteAction, &QAction::triggered, this, [this, name]() {
+                        QMessageBox::StandardButton reply = QMessageBox::question(this, "Delete Theme",
+                            "Delete theme '" + name + "' permanently?",
+                            QMessageBox::Yes | QMessageBox::No);
+
+                        if (reply == QMessageBox::Yes) {
+                            QSettings s("ProcessParty", "UserThemes");
+                            QString base = "theme_" + name;
+                            s.remove(base);
+                            QMessageBox::information(this, "Deleted", "Theme '" + name + "' has been deleted.");
+                        }
+                    });
+                }
+            }
+        }
+
+        if (themeNames.isEmpty()) {
+            menu.addAction("No saved themes yet")->setEnabled(false);
+        }
+
+        menu.exec(userThemesBtn->mapToGlobal(userThemesBtn->rect().bottomLeft()));
+    });
+
     QHBoxLayout *presetLayout = new QHBoxLayout();
 
     // Light and Dark buttons
@@ -2978,12 +3071,29 @@ void MainWindow::showSettingsDialog()
          "#3b82f6", "#ffffff", "#2563eb"
     );
 
-
+    // Themes first
     presetLayout->addWidget(lightBtn);
     presetLayout->addWidget(darkBtn);
     presetLayout->addWidget(colorBtn);
+    presetLayout->addWidget(userThemesBtn);
+
 
     mainLayout->addLayout(presetLayout);
+
+    mainLayout->addSpacing(20);
+
+    // Then Color Options
+    addColorButton("Background",       "background",    QColor("#f8fafc"));
+    addColorButton("Section Headers",  "sectionHeader", QColor("#f1f5f9"));
+    addColorButton("Accent Color",     "accent",        QColor("#3b82f6"));
+    addColorButton("Text Color",       "text",          QColor("#1e2937"));
+    addColorButton("Table Primary",    "panel",         QColor("#ffffff"));
+    addColorButton("Table Alternate",  "tableAlt",      QColor("#f1f5f9"));
+    addColorButton("Border Color",     "border",        QColor("#64748b"));
+
+    // Font at bottom
+    mainLayout->addWidget(new QLabel("<b>Font Settings</b>"));
+    mainLayout->addLayout(fontLayout);
 
     // === OK / Cancel ===
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
