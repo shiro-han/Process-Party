@@ -2157,6 +2157,9 @@ void MainWindow::showProcessHeaderMenu(const QPoint &pos)
 
     for (ProcessColumn column : columnOrder)
     {
+        if (column == ProcessColumn::Name)
+            continue;
+
         QAction *action = menu.addAction(columnTitle(column));
         action->setCheckable(true);
 
@@ -2167,10 +2170,7 @@ void MainWindow::showProcessHeaderMenu(const QPoint &pos)
             auto it = std::find(visibleColumns.begin(), visibleColumns.end(), column);
 
             if (it != visibleColumns.end())
-            {
-                if (column == ProcessColumn::Name)
-                    return;
-
+            {            
                 visibleColumns.erase(it);
             }
             else
