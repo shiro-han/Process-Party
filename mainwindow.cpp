@@ -105,6 +105,15 @@ MainWindow::MainWindow(QWidget *parent)
     networkInterfacesExpanded(true)
 {
     ui->setupUi(this);
+
+    setMinimumSize(1000, 650);
+
+    ui->mainScrollArea->setWidgetResizable(true);
+    ui->mainScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    ui->mainScrollAreaWidgetContents->setMinimumWidth(0);
+    ui->stackedWidget->setMinimumWidth(0);
+    ui->dashboardPage->setMinimumWidth(0);
+
     ui->historyPageLayout->setStretch(0, 0);
     ui->historyPageLayout->setStretch(1, 0);
     ui->historyPageLayout->setStretch(2, 1);
@@ -168,12 +177,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->diskPageLayout->setAlignment(Qt::AlignTop);
     ui->networkPageLayout->setAlignment(Qt::AlignTop);
 
-    ui->scrollContentLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    ui->dashboardPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    ui->cpuPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    ui->memoryPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    ui->diskPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    ui->networkPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    ui->scrollContentLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
+    ui->dashboardPageLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
+    ui->cpuPageLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
+    ui->memoryPageLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
+    ui->diskPageLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
+    ui->networkPageLayout->setSizeConstraint(QLayout::SetDefaultConstraint);
 
     ui->mainScrollAreaWidgetContents->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     ui->stackedWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
@@ -592,19 +601,14 @@ void MainWindow::setupGraphs()
     attachGraph(ui->dashboardDiskGraphContainer, dashboardDiskGraph);
     attachGraph(ui->dashboardNetworkGraphContainer, dashboardNetworkGraph);
 
-    ui->dashboardCpuGraphContainer->setMinimumHeight(150);
-    ui->dashboardCpuGraphContainer->setMaximumHeight(170);
-    ui->dashboardMemoryGraphContainer->setMinimumHeight(150);
-    ui->dashboardMemoryGraphContainer->setMaximumHeight(170);
-    ui->dashboardDiskGraphContainer->setMinimumHeight(150);
-    ui->dashboardDiskGraphContainer->setMaximumHeight(170);
-    ui->dashboardNetworkGraphContainer->setMinimumHeight(150);
-    ui->dashboardNetworkGraphContainer->setMaximumHeight(170);
-
-    ui->dashboardCpuGraphContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    ui->dashboardMemoryGraphContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    ui->dashboardDiskGraphContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    ui->dashboardNetworkGraphContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    ui->dashboardCpuGraphContainer->setMinimumHeight(105);
+    ui->dashboardCpuGraphContainer->setMaximumHeight(130);
+    ui->dashboardMemoryGraphContainer->setMinimumHeight(105);
+    ui->dashboardMemoryGraphContainer->setMaximumHeight(130);
+    ui->dashboardDiskGraphContainer->setMinimumHeight(105);
+    ui->dashboardDiskGraphContainer->setMaximumHeight(130);
+    ui->dashboardNetworkGraphContainer->setMinimumHeight(105);
+    ui->dashboardNetworkGraphContainer->setMaximumHeight(130);
 
     attachGraph(ui->cpuGraphContainer, cpuGraph);
     attachGraph(ui->memoryGraphContainer, memoryGraph);
@@ -614,6 +618,26 @@ void MainWindow::setupGraphs()
     attachGraph(ui->diskBarGraphContainer, diskBarGraph);
     attachGraph(ui->diskGraphContainer, diskGraph);
     attachGraph(ui->networkGraphContainer, networkGraph);
+
+    ui->dashboardCpuGraphContainer->setMinimumWidth(0);
+    ui->dashboardMemoryGraphContainer->setMinimumWidth(0);
+    ui->dashboardDiskGraphContainer->setMinimumWidth(0);
+    ui->dashboardNetworkGraphContainer->setMinimumWidth(0);
+
+    dashboardCpuGraph->setMinimumWidth(0);
+    dashboardMemoryGraph->setMinimumWidth(0);
+    dashboardDiskGraph->setMinimumWidth(0);
+    dashboardNetworkGraph->setMinimumWidth(0);
+
+    ui->dashboardCpuGraphContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->dashboardMemoryGraphContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->dashboardDiskGraphContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->dashboardNetworkGraphContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    dashboardCpuGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    dashboardMemoryGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    dashboardDiskGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    dashboardNetworkGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     updateCurrentPageHeight();
 }
@@ -631,8 +655,6 @@ void MainWindow::toggleDashboardGraphsSection()
         dashboardGraphsExpanded ? "Dashboard Graphs ▼" : "Dashboard Graphs ►"
         );
 
-    updateCurrentPageHeight();
-
     QTimer::singleShot(0, this, [this]() {
         updateCurrentPageHeight();
     });
@@ -643,8 +665,6 @@ void MainWindow::toggleCpuUsageSection()
     cpuUsageExpanded = !cpuUsageExpanded;
     if (cpuGraph) cpuGraph->setVisible(cpuUsageExpanded);
     ui->cpuUsageToggleButton->setText(cpuUsageExpanded ? "CPU Usage ▼" : "CPU Usage ►");
-
-    updateCurrentPageHeight();
 
     QTimer::singleShot(0, this, [this]() {
         updateCurrentPageHeight();
@@ -821,8 +841,8 @@ void MainWindow::setupInterfaceTrafficBars(const std::vector<InterfaceRate> &int
     interfaceTrafficValueLabels.clear();
 
     QVBoxLayout *listLayout = new QVBoxLayout();
-    listLayout->setContentsMargins(6, 6, 6, 6);
-    listLayout->setSpacing(8);
+    listLayout->setContentsMargins(6, 2, 6, 2);
+    listLayout->setSpacing(4);
 
     double maxCombined = 1.0;
     for (const InterfaceRate &iface : interfaces)
@@ -844,7 +864,7 @@ void MainWindow::setupInterfaceTrafficBars(const std::vector<InterfaceRate> &int
         QProgressBar *bar = new QProgressBar(rowWidget);
         bar->setRange(0, 1000);
         bar->setTextVisible(false);
-        bar->setMinimumHeight(18);
+        bar->setMinimumHeight(22);
         bar->setStyleSheet(
             "QProgressBar {"
             "  border: 1px solid #cfcfcf;"
@@ -897,12 +917,17 @@ void MainWindow::setupInterfaceTrafficBars(const std::vector<InterfaceRate> &int
     grid->setColumnStretch(0, 1);
 
     const int rowHeight = 28;
-    const int spacing = 8;
-    const int margins = 12;
+    const int spacing = 4;
+    const int margins = 4;
     int rowCount = std::max(1, static_cast<int>(interfaces.size()));
     int contentHeight = margins + rowCount * rowHeight + std::max(0, rowCount - 1) * spacing;
 
-    ui->networkInterfacesScrollArea->setFixedHeight(contentHeight);
+    container->setFixedHeight(contentHeight);
+
+    ui->networkInterfacesScrollWidget->setMinimumHeight(0);
+    ui->networkInterfacesScrollWidget->setMaximumHeight(contentHeight);
+    ui->networkInterfacesScrollArea->setFixedHeight(contentHeight + 6);
+    ui->networkInterfacesScrollArea->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     updateCurrentPageHeight();
 }
@@ -934,8 +959,8 @@ void MainWindow::setupPerCoreGraphs(int coreCount)
     perCoreValueLabels.clear();
 
     QVBoxLayout *listLayout = new QVBoxLayout();
-    listLayout->setContentsMargins(6, 6, 6, 6);
-    listLayout->setSpacing(8);
+    listLayout->setContentsMargins(6, 2, 6, 2);
+    listLayout->setSpacing(4);
 
     for (int i = 0; i < coreCount; ++i)
     {
@@ -990,14 +1015,19 @@ void MainWindow::setupPerCoreGraphs(int coreCount)
     grid->setRowStretch(0, 0);
     grid->setColumnStretch(0, 1);
 
-    const int rowHeight = 28;
-    const int spacing = 8;
-    const int margins = 12;
+    const int rowHeight = 24;
+    const int spacing = 4;
+    const int margins = 8;
     int contentHeight = margins + coreCount * rowHeight + std::max(0, coreCount - 1) * spacing;
+
+    container->setFixedHeight(contentHeight);
+
+    ui->cpuPerCoreScrollWidget->setMinimumHeight(0);
+    ui->cpuPerCoreScrollWidget->setMaximumHeight(contentHeight);
 
     ui->cpuPerCoreScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->cpuPerCoreScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    ui->cpuPerCoreScrollArea->setFixedHeight(contentHeight);
+    ui->cpuPerCoreScrollArea->setFixedHeight(contentHeight + 4);
 
     updateCurrentPageHeight();
 }
@@ -1220,7 +1250,7 @@ void MainWindow::applyDefaultSplitterSizes()
     switch (currentPage)
     {
     case MonitorPage::Dashboard:
-        sizes << 330 << 320;
+        sizes << 280 << 370;
         break;
 
     case MonitorPage::CPU:
@@ -1253,30 +1283,70 @@ void MainWindow::updateCurrentPageHeight()
     if (!page)
         return;
 
-    page->adjustSize();
-    page->updateGeometry();
+    ui->stackedWidget->setMinimumHeight(0);
+    ui->stackedWidget->setMaximumHeight(QWIDGETSIZE_MAX);
 
-    if (currentPage == MonitorPage::History)
+    ui->mainScrollAreaWidgetContents->setMinimumHeight(0);
+    ui->mainScrollAreaWidgetContents->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    ui->mainScrollArea->setMinimumHeight(0);
+    ui->mainScrollArea->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    if (currentPage == MonitorPage::Dashboard)
     {
-        ui->stackedWidget->setMinimumHeight(0);
-        ui->stackedWidget->setMaximumHeight(QWIDGETSIZE_MAX);
-
-        ui->mainScrollAreaWidgetContents->adjustSize();
-        ui->mainScrollAreaWidgetContents->updateGeometry();
-        ui->mainScrollArea->widget()->adjustSize();
-        ui->mainScrollArea->widget()->updateGeometry();
-        return;
+        ui->mainScrollAreaWidgetContents->setMaximumHeight(340);
+        ui->mainScrollArea->setMaximumHeight(360);
+    }
+    else if (currentPage == MonitorPage::CPU)
+    {
+        ui->mainScrollAreaWidgetContents->setMaximumHeight(540);
+        ui->mainScrollArea->setMaximumHeight(560);
+    }
+    else if (currentPage == MonitorPage::Disk)
+    {
+        ui->mainScrollAreaWidgetContents->setMaximumHeight(420);
+        ui->mainScrollArea->setMaximumHeight(440);
+    }
+    else if (currentPage == MonitorPage::Network)
+    {
+        ui->mainScrollAreaWidgetContents->setMaximumHeight(370);
+        ui->mainScrollArea->setMaximumHeight(390);
     }
 
-    const int pageHeight = page->sizeHint().height();
-
-    ui->stackedWidget->setMinimumHeight(pageHeight);
-    ui->stackedWidget->setMaximumHeight(pageHeight);
-
-    ui->mainScrollAreaWidgetContents->adjustSize();
+    page->updateGeometry();
+    ui->stackedWidget->updateGeometry();
     ui->mainScrollAreaWidgetContents->updateGeometry();
-    ui->mainScrollArea->widget()->adjustSize();
-    ui->mainScrollArea->widget()->updateGeometry();
+    ui->mainScrollArea->updateGeometry();
+}
+
+void MainWindow::updateDashboardGraphLayout()
+{
+    if (!ui->dashboardGraphsGrid)
+        return;
+
+    ui->dashboardGraphsGrid->setHorizontalSpacing(8);
+    ui->dashboardGraphsGrid->setVerticalSpacing(8);
+    ui->dashboardGraphsGrid->setContentsMargins(0, 0, 0, 0);
+    ui->dashboardGraphsGrid->setSizeConstraint(QLayout::SetNoConstraint);
+
+    ui->dashboardGraphsGrid->setColumnStretch(0, 1);
+    ui->dashboardGraphsGrid->setColumnStretch(1, 1);
+    ui->dashboardGraphsGrid->setRowStretch(0, 0);
+    ui->dashboardGraphsGrid->setRowStretch(1, 0);
+
+    ui->dashboardGraphsGrid->setColumnMinimumWidth(0, 0);
+    ui->dashboardGraphsGrid->setColumnMinimumWidth(1, 0);
+    ui->dashboardGraphsGrid->setRowMinimumHeight(0, 0);
+    ui->dashboardGraphsGrid->setRowMinimumHeight(1, 0);
+
+    ui->dashboardPage->setMinimumWidth(0);
+    ui->dashboardPage->updateGeometry();
+    ui->stackedWidget->updateGeometry();
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
 }
 
 void MainWindow::setNavButtonActive(QPushButton *button, bool active)
@@ -2219,9 +2289,21 @@ void MainWindow::setCurrentPage(MonitorPage page)
 
     updatePageHeader();
     updateSidebarHighlight();
-    applyDefaultSplitterSizes();
 
-    updateCurrentPageHeight();
+    ui->stackedWidget->setMinimumHeight(0);
+    ui->stackedWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    ui->mainScrollArea->setMinimumHeight(0);
+    ui->mainScrollArea->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    ui->dashboardPage->setMinimumHeight(0);
+    ui->cpuPage->setMinimumHeight(0);
+    ui->memoryPage->setMinimumHeight(0);
+    ui->diskPage->setMinimumHeight(0);
+    ui->networkPage->setMinimumHeight(0);
+    ui->historyPage->setMinimumHeight(0);
+
+    applyDefaultSplitterSizes();
 
     QTimer::singleShot(0, this, [this]() {
         updateCurrentPageHeight();

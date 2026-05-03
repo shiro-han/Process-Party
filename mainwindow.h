@@ -9,6 +9,8 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QProgressBar>
+#include <QResizeEvent>
+
 #include <vector>
 #include <chrono>
 #include <utility>
@@ -95,6 +97,7 @@ enum class RawExportColumn
         Nice
     };
 
+// start of Statsworker
 class StatsWorker : public QObject
 {
     Q_OBJECT
@@ -113,6 +116,7 @@ signals:
 private:
     ProcessTable processTable;
 };
+// end of Statsworker
 
 struct RecordingSession
 {
@@ -133,6 +137,9 @@ public:
 
 signals:
     void requestStats();
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
 
@@ -244,6 +251,7 @@ private:
     void updateGraphs(const SystemData &data);
     void updatePageHeader();
     void updateCurrentPageHeight();
+    void updateDashboardGraphLayout();
 
     void updateSidebarAppearance();
     void updateSidebarHighlight();

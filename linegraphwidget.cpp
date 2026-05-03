@@ -15,7 +15,7 @@ LineGraphWidget::LineGraphWidget(QWidget *parent)
       m_fixedMinValue(0.0),
       m_fixedMaxValue(100.0)
 {
-    setMinimumHeight(180);
+    setMinimumSize(0, 100);
 }
 
 void LineGraphWidget::setTitle(const QString &title)
@@ -178,12 +178,12 @@ void LineGraphWidget::clearAllSeries()
 
 QSize LineGraphWidget::minimumSizeHint() const
 {
-    return QSize(240, 160);
+    return QSize(120, 100);
 }
 
 QSize LineGraphWidget::sizeHint() const
 {
-    return QSize(360, 220);
+    return QSize(300, 160);
 }
 
 QString LineGraphWidget::formatValue(double value) const
@@ -487,8 +487,8 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
             QColor color = lineColors[s % lineColors.size()];
             QPainterPath path;
             bool started = false;
-            int sampleSlots = std::max(2, m_maxSamples);
-            int offset = std::max(0, sampleSlots - static_cast<int>(series.samples.size()));
+            int sampleSlots = std::max(2, static_cast<int>(series.samples.size()));
+            int offset = 0;
 
             for (int i = 0; i < static_cast<int>(series.samples.size()); ++i)
             {
@@ -528,8 +528,8 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
 
         QPainterPath path;
         bool started = false;
-        int sampleSlots = std::max(2, m_maxSamples);
-        int offset = std::max(0, sampleSlots - static_cast<int>(m_samples.size()));
+        int sampleSlots = std::max(2, static_cast<int>(m_samples.size()));
+        int offset = 0;
 
         for (int i = 0; i < static_cast<int>(m_samples.size()); ++i)
         {
