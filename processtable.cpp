@@ -150,6 +150,25 @@ bool ProcessTable::readProcStat(int pid,
     return true;
 }
 
+std::string readFullProcessName(int pid, const std::string &fallbackName)
+{
+    std::ifstream in("/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary);
+    if (!in)
+        return fallbackName;
+
+    std::string cmdline;
+    std::getline(in, cmdline, '\0');
+
+    if (cmdline.empty())
+        return fallbackName;
+
+    std::size_t slash = cmdline.find_last_of('/');
+    if (slash != std::string::npos && slash + 1 < cmdline.size())
+        return cmdline.substr(slash + 1);
+
+    return cmdline;
+}
+
 void ProcessTable::readMemoryFields(int pid,
                                     long long &outVmRssKB,
                                     long long &outVmSizeKB,
@@ -282,6 +301,7 @@ std::optional<ProcInfoNow> ProcessTable::readProcInfoNow(int pid)
     if (!readProcStat(pid, info.name, info.state, utime, stime, threads, priority, niceValue, startTimeTicks))
         return std::nullopt;
 
+    info.name = readFullProcessName(pid, info.name);
     info.cpuTicks = utime + stime;
     info.startTimeTicks = startTimeTicks;
     info.threads = threads;

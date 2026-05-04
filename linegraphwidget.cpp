@@ -145,6 +145,21 @@ void LineGraphWidget::setShowSummaryText(bool show)
     update();
 }
 
+void LineGraphWidget::setShowAxisLabels(bool show)
+{
+    m_showAxisLabels = show;
+    update();
+}
+
+void LineGraphWidget::setSampleIntervalSeconds(int seconds)
+{
+    if (seconds < 1)
+        seconds = 1;
+
+    m_sampleIntervalSeconds = seconds;
+    update();
+}
+
 bool LineGraphWidget::seriesVisible(int index) const
 {
     if (index < 0 || index >= static_cast<int>(m_series.size()))
@@ -188,6 +203,17 @@ QSize LineGraphWidget::sizeHint() const
 
 QString LineGraphWidget::formatValue(double value) const
 {
+    if (m_unitSuffix.contains("B/s"))
+    {
+        if (std::fabs(value) >= 1024.0 * 1024.0)
+            return QString::number(value / (1024.0 * 1024.0), 'f', 1) + " MB/s";
+
+        if (std::fabs(value) >= 1024.0)
+            return QString::number(value / 1024.0, 'f', 0) + " KB/s";
+
+        return QString::number(value, 'f', 0) + " B/s";
+    }
+
     if (std::fabs(value) >= 100.0)
         return QString::number(value, 'f', 0) + m_unitSuffix;
 
@@ -199,22 +225,32 @@ QString LineGraphWidget::formatValue(double value) const
 
 QString LineGraphWidget::latestSummaryText() const
 {
-    if (m_series.empty())
-        return formatValue(latestValue());
-
-    QStringList parts;
-    for (const Series &series : m_series)
+    if (!m_series.empty())
     {
-        if (!series.visible || series.samples.empty())
-            continue;
+        QStringList parts;
 
-        QString name = series.name.isEmpty() ? "Series" : series.name;
-        parts << QString("%1 %2").arg(name, formatValue(series.samples.back()));
+        for (int i = 0; i < static_cast<int>(m_series.size()); ++i)
+        {
+            const Series &series = m_series[i];
+            if (!series.visible || series.samples.empty())
+                continue;
+
+            double value = series.samples.back();
+            QString text = formatValue(value);
+
+            if (!series.name.isEmpty())
+                text = series.name + ": " + text;
+
+            parts << text;
+        }
+
+        return parts.join("  ");
     }
 
-    if (parts.isEmpty())
-        return "No visible series";
-    return parts.join("   ");
+    if (!m_samples.empty())
+        return formatValue(m_samples.back());
+
+    return "";
 }
 
 double LineGraphWidget::computedMinValue() const
@@ -381,7 +417,7 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.fillRect(rect(), palette().window());
 
-    QRectF outer = rect().adjusted(16, 16, -16, -24);
+    QRectF outer = rect().adjusted(16, 12, -16, -14);
 
     bool hasHeader = m_showTitle || m_showSummaryText;
     QRectF titleRect = outer.adjusted(8, 6, -8, 0);
@@ -402,15 +438,30 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
         valueFont.setBold(false);
         painter.setFont(valueFont);
         painter.setPen(palette().text().color());
-        painter.drawText(titleRect, Qt::AlignRight | Qt::AlignTop, latestSummaryText());
+
+        QRectF summaryRect = outer.adjusted(8, 10, -12, 0);
+        painter.drawText(summaryRect, Qt::AlignRight | Qt::AlignTop, latestSummaryText());
     }
 
     bool hasLegend = !m_series.empty();
     int topInset = hasHeader ? 28 : 8;
     if (hasLegend)
-        topInset += 20;
+    topInset += 24;
 
-    QRectF plotRect = outer.adjusted(8, topInset, -8, -8);
+    QRectF plotRect;
+    int labelWidth = 0;
+
+    if (m_showAxisLabels)
+    {
+        QFontMetrics fm(painter.font());
+        labelWidth = fm.horizontalAdvance("100 MB/s") + 8;
+
+        plotRect = outer.adjusted(labelWidth + 10, topInset, -6, -18);
+    }
+    else
+    {
+        plotRect = outer.adjusted(8, topInset, -8, -8);
+    }
 
     double minValue = computedMinValue();
     double maxValue = computedMaxValue();
@@ -432,6 +483,50 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
     }
 
     // Legend and line drawing
+
+    if (m_showAxisLabels)
+    {
+        painter.setPen(QPen(palette().mid().color(), 1));
+
+        painter.drawLine(plotRect.bottomLeft(), plotRect.bottomRight());
+        painter.drawLine(plotRect.bottomLeft(), plotRect.topLeft());
+
+        QFont axisFont = painter.font();
+        axisFont.setPointSize(std::max(7, axisFont.pointSize() - 2));
+        painter.setFont(axisFont);
+        painter.setPen(palette().text().color());
+
+        const int yTicks = 2;
+        for (int i = 0; i <= yTicks; ++i)
+        {
+            double ratio = static_cast<double>(i) / yTicks;
+            double value = maxValue - ratio * (maxValue - minValue);
+            double y = plotRect.top() + plotRect.height() * ratio;
+
+            painter.drawLine(QPointF(plotRect.left() - 4, y), QPointF(plotRect.left(), y));
+
+            QString label = formatValue(value);
+            QRectF labelRect(plotRect.left() - labelWidth - 6, y - 8, labelWidth, 16);
+            painter.drawText(labelRect, Qt::AlignRight | Qt::AlignVCenter, label);
+        }
+
+        const int xTicks = 2;
+        int totalSeconds = std::max(1, (m_maxSamples - 1) * m_sampleIntervalSeconds);
+
+        for (int i = 0; i <= xTicks; ++i)
+        {
+            double ratio = static_cast<double>(i) / xTicks;
+            double x = plotRect.left() + plotRect.width() * ratio;
+
+            painter.drawLine(QPointF(x, plotRect.bottom()), QPointF(x, plotRect.bottom() + 6));
+
+            int secondsAgo = static_cast<int>((1.0 - ratio) * totalSeconds);
+            QString label = (i == xTicks) ? "now" : QString("-%1s").arg(secondsAgo);
+
+            QRectF labelRect(x - 18, plotRect.bottom() + 7, 36, 14);
+            painter.drawText(labelRect, Qt::AlignCenter, label);
+        }
+    }
     if (!m_series.empty())
     {
         const std::vector<QColor> lineColors = {
@@ -439,8 +534,8 @@ void LineGraphWidget::paintEvent(QPaintEvent *event)
             QColor(168, 85, 247), QColor(234, 88, 12)
         };
 
-        int legendY = static_cast<int>(outer.top()) + (hasHeader ? 24 : 8);
-        int legendX = static_cast<int>(outer.left()) + 10;
+        int legendY = static_cast<int>(outer.top()) + 10;
+        int legendX = static_cast<int>(outer.left()) + 8;
 
         for (int s = 0; s < static_cast<int>(m_series.size()); ++s)
         {

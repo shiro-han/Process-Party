@@ -35,6 +35,9 @@ public:
     void setShowTitle(bool show);
     void setShowSummaryText(bool show);
 
+    void setShowAxisLabels(bool show);
+    void setSampleIntervalSeconds(int seconds);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -83,6 +86,9 @@ private:
 
     bool m_showTitle = true;
     bool m_showSummaryText = true;
+
+    bool m_showAxisLabels = false;
+    int m_sampleIntervalSeconds = 1;
 };
 
 #endif

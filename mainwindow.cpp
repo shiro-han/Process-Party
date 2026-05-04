@@ -500,6 +500,8 @@ void MainWindow::setupGraphs()
     cpuGraph->setSeriesNames({"Total", "User", "System"});
     cpuGraph->setShowTitle(false);
     cpuGraph->setShowSummaryText(false);
+    cpuGraph->setShowAxisLabels(true);
+    cpuGraph->setSampleIntervalSeconds(1);
 
     memoryGraph = new LineGraphWidget(this);
     memoryGraph->setTitle("Memory Usage");
@@ -508,28 +510,30 @@ void MainWindow::setupGraphs()
     memoryGraph->setMaxSamples(120);
     memoryGraph->setShowTitle(false);
     memoryGraph->setShowSummaryText(false);
+    memoryGraph->setShowAxisLabels(true);
+    memoryGraph->setSampleIntervalSeconds(1);
     memoryGraph->setMinimumHeight(140);
     memoryGraph->setMaximumHeight(170);
 
     memoryUsedGraph = new LineGraphWidget(this);
     memoryUsedGraph->setTitle("Used vs Available Memory");
-    memoryUsedGraph->setUnitSuffix(" MB");
-    memoryUsedGraph->setAutoScale(true);
+    memoryUsedGraph->setUnitSuffix("%");
+    memoryUsedGraph->setFixedRange(0.0, 100.0);
     memoryUsedGraph->setMaxSamples(120);
     memoryUsedGraph->setSeriesNames({"Used", "Available"});
     memoryUsedGraph->setShowTitle(false);
-    memoryUsedGraph->setShowSummaryText(false);
+    memoryUsedGraph->setShowSummaryText(true);
     memoryUsedGraph->setMinimumHeight(120);
     memoryUsedGraph->setMaximumHeight(140);
 
     memoryCacheGraph = new LineGraphWidget(this);
     memoryCacheGraph->setTitle("Cache / Buffers");
-    memoryCacheGraph->setUnitSuffix(" MB");
-    memoryCacheGraph->setAutoScale(true);
+    memoryCacheGraph->setUnitSuffix("%");
+    memoryCacheGraph->setFixedRange(0.0, 100.0);
     memoryCacheGraph->setMaxSamples(120);
     memoryCacheGraph->setSeriesNames({"Cache", "Buffers"});
     memoryCacheGraph->setShowTitle(false);
-    memoryCacheGraph->setShowSummaryText(false);
+    memoryCacheGraph->setShowSummaryText(true);
     memoryCacheGraph->setMinimumHeight(120);
     memoryCacheGraph->setMaximumHeight(140);
 
@@ -569,23 +573,26 @@ void MainWindow::setupGraphs()
 
     diskGraph = new LineGraphWidget(this);
     diskGraph->setTitle("Disk Activity");
-    diskGraph->setUnitSuffix(" B/s");
-    diskGraph->setAutoScale(true);
+    diskGraph->setUnitSuffix("MB/s");
     diskGraph->setMaxSamples(120);
     diskGraph->setSeriesNames({"Read", "Write"});
     diskGraph->setShowTitle(false);
     diskGraph->setShowSummaryText(false);
+    diskGraph->setShowAxisLabels(true);
+    diskGraph->setSampleIntervalSeconds(1);
     diskGraph->setMinimumHeight(140);
     diskGraph->setMaximumHeight(170);
 
     networkGraph = new LineGraphWidget(this);
     networkGraph->setTitle("Network Traffic");
     networkGraph->setUnitSuffix(" B/s");
-    networkGraph->setAutoScale(true);
+    networkGraph->setFixedRange(0.0, 1024.0 * 1024.0);
     networkGraph->setMaxSamples(120);
     networkGraph->setSeriesNames({"Download", "Upload"});
     networkGraph->setShowTitle(false);
     networkGraph->setShowSummaryText(false);
+    networkGraph->setShowAxisLabels(true);
+    networkGraph->setSampleIntervalSeconds(1);
     networkGraph->setMinimumHeight(140);
     networkGraph->setMaximumHeight(170);
 
@@ -854,9 +861,11 @@ void MainWindow::setupInterfaceTrafficBars(const std::vector<InterfaceRate> &int
     for (const InterfaceRate &iface : interfaces)
     {
         QWidget *rowWidget = new QWidget(ui->networkInterfacesScrollWidget);
+        rowWidget->setFixedHeight(28);
         QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
         rowLayout->setContentsMargins(0, 0, 0, 0);
         rowLayout->setSpacing(10);
+        rowLayout->setAlignment(Qt::AlignVCenter);
 
         QLabel *nameLabel = new QLabel(QString::fromStdString(iface.name), rowWidget);
         nameLabel->setMinimumWidth(90);
@@ -864,7 +873,7 @@ void MainWindow::setupInterfaceTrafficBars(const std::vector<InterfaceRate> &int
         QProgressBar *bar = new QProgressBar(rowWidget);
         bar->setRange(0, 1000);
         bar->setTextVisible(false);
-        bar->setMinimumHeight(22);
+        bar->setFixedHeight(18);
         bar->setStyleSheet(
             "QProgressBar {"
             "  border: 1px solid #cfcfcf;"
@@ -1175,14 +1184,29 @@ void MainWindow::updateGraphs(const SystemData &data)
 
     memoryGraph->addSample(static_cast<double>(data.memoryPercent));
 
+    double totalMemoryMB = data.memory.totalMB;
+
+    double usedPercent = 0.0;
+    double availablePercent = 0.0;
+    double cachedPercent = 0.0;
+    double bufferedPercent = 0.0;
+
+    if (totalMemoryMB > 0.0)
+    {
+        usedPercent = (data.memory.usedMB / totalMemoryMB) * 100.0;
+        availablePercent = (data.memory.availableMB / totalMemoryMB) * 100.0;
+        cachedPercent = (data.memory.cachedMB / totalMemoryMB) * 100.0;
+        bufferedPercent = (data.memory.bufferedMB / totalMemoryMB) * 100.0;
+    }
+
     memoryUsedGraph->addSamples({
-        data.memory.usedMB,
-        data.memory.availableMB
+        usedPercent,
+        availablePercent
     });
 
     memoryCacheGraph->addSamples({
-        data.memory.cachedMB,
-        data.memory.bufferedMB
+        cachedPercent,
+        bufferedPercent
     });
 
     diskGraph->addSamples({
@@ -1674,7 +1698,6 @@ void MainWindow::setupProcessTable()
     ui->processTable->setGridStyle(Qt::SolidLine);
 
     ui->processTable->horizontalHeader()->setStretchLastSection(false);
-    ui->processTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     ui->processTable->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->processTable->horizontalHeader()->setStyleSheet(
         "QHeaderView::section {"
@@ -1692,7 +1715,16 @@ void MainWindow::setupProcessTable()
             this, &MainWindow::showProcessHeaderMenu);
 
     rebuildProcessTableColumns();
+    QHeaderView *header = ui->processTable->horizontalHeader();
+    header->setStretchLastSection(false);
+    for (int i = 0; i < ui->processTable->columnCount(); ++i)
+    {
+        header->setSectionResizeMode(i, QHeaderView::ResizeToContents);
+    }
+    header->setSectionResizeMode(0, QHeaderView::Stretch);
 
+    ui->processTable->setTextElideMode(Qt::ElideRight);
+    ui->processTable->setWordWrap(false);
     ui->mainVerticalSplitter->setStretchFactor(0, 3);
     ui->mainVerticalSplitter->setStretchFactor(1, 2);
     ui->mainVerticalSplitter->setChildrenCollapsible(false);
