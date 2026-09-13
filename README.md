@@ -1,8 +1,8 @@
 # Process Party
 Process Party is a real-time system resource monitor that provides a
-customizable alternative to Linux’s default task manager. The application
-displays details about system resource usage, allows users to record system 
-usage data as a CSV, and offers enhanced color customization within its interface.
+customizable alternative to Ubuntu’s default task manager. Built using C++ and the Qt framework, the application
+displays detailed information about system resource usage, allows users to record, review, and export system 
+usage data, and supports high interface customizability with fonts, application colors, a collapsible layout, and 18 preset themes. 
 
 ## Features
 -  Detailed real-time graphical information about CPU usage, memory usage, disk activity, network activity, and
@@ -12,6 +12,19 @@ process priority.
 -  Application dashboard with at-a-glance system information graphs.
 -  History tab with configuration settings for process-by-process session recordings, session summaries, and CSV session data export.
 -  Full color and font customization, including 18 preset themes, a color picker, and the ability to save user-generated themes.
+<p align="center">
+    <img width="624" height="320" alt="Dashboard" src="https://github.com/user-attachments/assets/9f6b70ff-86b8-4ed6-9506-aaa8bdb1d3da" />
+
+<p align="center"><i>
+Customizable dashboard, featuring metric graphs and an interactive process table.
+</i></p>
+ 
+<p align="center">
+<img width="624" height="320" alt="Settings" src="https://github.com/user-attachments/assets/a75ec302-6242-4909-9166-16bddf7c003b" />
+
+<p align="center"><i>
+    Settings tab with full color and font customization.
+</i></p>
 
 ## How to Install
 1.  Open a terminal and clone the repository.
@@ -79,6 +92,8 @@ It should look like this:
 ```
 cd ~/ProcessPartyDeploy ./run-process-party.sh
 ````
+</br>
+
 ## System Requirements
 Process Party is a standalone Linux desktop application created for Ubuntu 22.04+ Linux
 distributions. It requires a GUI environment (X11 or Wayland). The minimum hardware
@@ -96,6 +111,7 @@ systems tested included Ubuntu 22.04, 24.04, 25.10, and 26.04. Testing was
 performed both through Qt Creator IDE and directly through terminal execution
 of the compiled binary. 
 
+</br>
 
 ## FAQ
 ### Why do I receive an error when trying to change process priority?
